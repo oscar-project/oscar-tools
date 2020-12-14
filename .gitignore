@@ -1,0 +1,16 @@
+/target
+
+
+# Mac hidden files
+.DS_Store
+
+#folders
+.vscode/*
+test-orig/*
+test-dedup/*
+test-split/*
+
+# exception to the rule
+!test-orig/.gitkeep
+!test-dedup/.gitkeep
+!test-split/.gitkeep
