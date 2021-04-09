@@ -1,3 +1,10 @@
+mod cli;
+mod lang_codes;
+
+use cli::OscarTools;
+use structopt::StructOpt;
+
 fn main() {
-    println!("Hello, world!");
+    let opt = OscarTools::from_args();
+    println!("{:?}", opt);
 }
