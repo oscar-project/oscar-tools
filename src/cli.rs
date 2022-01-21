@@ -1,4 +1,5 @@
 use crate::error::Error;
+use crate::extract_clean::ExtractCleanCorpus;
 use crate::lang_codes::UpdateLangCodes;
 use structopt::StructOpt;
 
@@ -18,12 +19,15 @@ pub trait Runnable {
 pub enum OscarTools {
     #[structopt(about = "update language codes to BCP-47 and fix mistakes from OSCAR v1.")]
     UpdateLangCodes(UpdateLangCodes),
+    #[structopt(about = "Extract a clean corpus from provide OSCAR Schema v2 corpus")]
+    ExtractCleanCorpus(ExtractCleanCorpus),
 }
 
 impl Runnable for OscarTools {
     fn run(&self) -> Result<(), Error> {
         match self {
             OscarTools::UpdateLangCodes(u) => u.run(),
+            OscarTools::ExtractCleanCorpus(u) => u.run(),
         }
     }
 }
