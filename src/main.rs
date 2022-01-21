@@ -5,6 +5,8 @@ mod cli;
 mod error;
 mod extract_clean;
 mod lang_codes;
+mod ops;
+mod versions;
 
 use cli::OscarTools;
 use cli::Runnable;
