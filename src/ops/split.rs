@@ -85,14 +85,21 @@ impl SplitWriter {
         }
 
         let filename = self.next_filename().unwrap();
-        self.fp = Some(File::create(&filename)?);
+        debug!("Rotating: creating {:?}", filename);
 
+        self.fp = Some(File::create(&filename)?);
+        self.current_size = 0;
         Ok(())
     }
 }
 
 impl Write for SplitWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        debug!("writing buf of size {:?}", buf.len());
+        debug!(
+            "current file capacity: {:?}/{:?}",
+            self.current_size, self.max_size
+        );
         // create first file if fp is none
         if self.fp.is_none() {
             self.rotate_file()?;
@@ -109,7 +116,9 @@ impl Write for SplitWriter {
         }
 
         if let Some(fp) = &mut self.fp {
-            Ok(fp.write(buf)?)
+            let bytes_written = fp.write(buf)?;
+            self.current_size += bytes_written;
+            Ok(bytes_written)
         } else {
             Err(std::io::Error::new(
                 std::io::ErrorKind::NotFound,
@@ -129,6 +138,7 @@ impl Write for SplitWriter {
 pub trait Split {
     /// Split a single file into multiple fixed size ones
     fn split(src: &Path, dst: &Path, split_size: usize) -> Result<(), Error> {
+        debug!("Using default splitter with size {split_size}");
         let corpus = File::open(&src)?;
         let corpus_buf = BufReader::new(corpus);
         let documents = corpus_buf.lines();

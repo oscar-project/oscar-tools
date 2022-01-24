@@ -1,6 +1,7 @@
 use crate::error::Error;
 use crate::extract_clean::ExtractCleanCorpus;
 use crate::lang_codes::UpdateLangCodes;
+use crate::split_latest::SplitLatest;
 use structopt::StructOpt;
 
 /// Runnable traits have to be implemented by commands
@@ -21,6 +22,8 @@ pub enum OscarTools {
     UpdateLangCodes(UpdateLangCodes),
     #[structopt(about = "Extract a clean corpus from provide OSCAR Schema v2 corpus")]
     ExtractCleanCorpus(ExtractCleanCorpus),
+    #[structopt(about = "Split a corpus into a set of smaller files")]
+    SplitLatest(SplitLatest),
 }
 
 impl Runnable for OscarTools {
@@ -28,6 +31,7 @@ impl Runnable for OscarTools {
         match self {
             OscarTools::UpdateLangCodes(u) => u.run(),
             OscarTools::ExtractCleanCorpus(u) => u.run(),
+            OscarTools::SplitLatest(u) => u.run(),
         }
     }
 }
