@@ -4,7 +4,7 @@ use std::{
     borrow::Cow,
     fmt::format,
     fs::File,
-    io::{BufRead, BufReader, BufWriter, Write},
+    io::{BufRead, BufReader, BufWriter, ErrorKind, Write},
     path::{Path, PathBuf},
 };
 
@@ -80,26 +80,39 @@ impl SplitWriter {
         if self.nb_files == 1 {
             // moving foo.bar to foo_part_1.bar
             let new_filename = Self::format_filename(&self.dst, 1).unwrap();
-            self.fp = None;
-            std::fs::rename(&self.dst, new_filename)?;
+
+            // early return if filename exists
+            if new_filename.exists() {
+                return Err(std::io::Error::new(
+                    ErrorKind::AlreadyExists,
+                    format!("{:?}", new_filename),
+                ));
+            } else {
+                debug!("moving {:?} to {:?}", self.dst, new_filename);
+                self.fp = None;
+                self.nb_files += 1;
+                std::fs::rename(&self.dst, new_filename)?;
+            }
         }
 
         let filename = self.next_filename().unwrap();
-        debug!("Rotating: creating {:?}", filename);
 
-        self.fp = Some(File::create(&filename)?);
-        self.current_size = 0;
-        Ok(())
+        if filename.exists() {
+            Err(std::io::Error::new(
+                ErrorKind::AlreadyExists,
+                format!("{:?}", filename),
+            ))
+        } else {
+            debug!("Rotating: creating {:?}", filename);
+            self.fp = Some(File::create(&filename)?);
+            self.current_size = 0;
+            Ok(())
+        }
     }
 }
 
 impl Write for SplitWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        debug!("writing buf of size {:?}", buf.len());
-        debug!(
-            "current file capacity: {:?}/{:?}",
-            self.current_size, self.max_size
-        );
         // create first file if fp is none
         if self.fp.is_none() {
             self.rotate_file()?;
