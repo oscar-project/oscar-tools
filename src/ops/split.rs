@@ -2,9 +2,8 @@
 !*/
 use std::{
     borrow::Cow,
-    fmt::format,
     fs::File,
-    io::{BufRead, BufReader, BufWriter, ErrorKind, Write},
+    io::{BufRead, BufReader, ErrorKind, Write},
     path::{Path, PathBuf},
 };
 
@@ -53,26 +52,24 @@ impl SplitWriter {
         if self.nb_files == 0 {
             self.nb_files += 1;
             Some(Cow::from(&self.dst))
+        } else if let (Some(stem), Some(extension)) = (self.dst.file_stem(), self.dst.extension()) {
+            // clone filename
+            let mut next_filename = self.dst.clone();
+
+            // get stem and forge new filename
+            let mut file_stem = stem.to_os_string();
+            file_stem.push(format!("_part_{}", self.nb_files));
+            next_filename.set_file_name(file_stem);
+            next_filename.set_extension(extension);
+
+            println!("{:?}", next_filename);
+
+            // increase file count
+            self.nb_files += 1;
+
+            Some(Cow::from(next_filename))
         } else {
-            if let (Some(stem), Some(extension)) = (self.dst.file_stem(), self.dst.extension()) {
-                // clone filename
-                let mut next_filename = self.dst.clone();
-
-                // get stem and forge new filename
-                let mut file_stem = stem.to_os_string();
-                file_stem.push(format!("_part_{}", self.nb_files));
-                next_filename.set_file_name(file_stem);
-                next_filename.set_extension(extension);
-
-                println!("{:?}", next_filename);
-
-                // increase file count
-                self.nb_files += 1;
-
-                Some(Cow::from(next_filename))
-            } else {
-                None
-            }
+            None
         }
     }
 
