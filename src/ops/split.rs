@@ -8,6 +8,7 @@ use std::{
 };
 
 use crate::error::Error;
+use rayon::iter::{ParallelBridge, ParallelIterator};
 
 struct SplitWriter {
     dst: PathBuf,
@@ -146,8 +147,90 @@ impl Write for SplitWriter {
     }
 }
 pub trait Split {
+    /// Assumes all corpus files to be in the same dict (not in separate folders)
+    fn split_all(
+        src: &Path,
+        dst: &Path,
+        split_size: usize,
+        num_threads: usize,
+    ) -> Result<(), Error> {
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(num_threads)
+            .build_global()?;
+        debug!("Built rayon threadpool with num_threads={num_threads}");
+
+        //check existence of folder and/or its emptyness
+        // if dst.exists() {
+        //     return Err(std::io::Error::new(ErrorKind::AlreadyExists, format!("{:?}", dst)).into());
+        // }
+        // if dst.is_file() {
+        //     // when #86442 is merged
+        //     //return Err(std::io::Error::new(ErrorKind::NotADirectory, format!("{:?}", dst)).into());
+        //     return Err(Error::Custom("Not a directory".to_string()));
+        // }
+
+        let files = std::fs::read_dir(src)?;
+
+        // filter out folders and errors (printing then discarding them)
+        let files = files
+            .filter_map(|p| match p {
+                Ok(path) => {
+                    let path = path.path();
+                    if path.is_file() {
+                        Some(path)
+                    } else {
+                        None
+                    }
+                }
+                Err(e) => {
+                    error!("Discarding the following path due to an error: {:?}", e);
+                    None
+                }
+            })
+            .par_bridge();
+
+        debug!("got: {:#?}", files);
+
+        let r: Vec<Result<(), Error>> = files
+            .map(|file| {
+                // extract filename
+                // send to a split file
+                if let Some(filename) = file.file_stem() {
+                    // Create folder for file
+                    let dest_folder: PathBuf = [dst.as_os_str(), filename].iter().collect();
+                    std::fs::create_dir(&dest_folder)?;
+
+                    // create base file name
+                    let mut dest_file = dest_folder.clone();
+                    let file_name = file.file_name().unwrap();
+                    dest_file.push(file_name);
+
+                    debug!("Splitting {:?} in {:?}", file, dest_folder);
+                    Self::split_file(&file, &dest_file, split_size)?;
+                    debug!("Done      {:?} in {:?}", file, dest_folder);
+                };
+                Ok(())
+            })
+            .collect();
+
+        // Collect eventual errors
+        let errors: Vec<Error> = r.into_iter().filter_map(|result| result.err()).collect();
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            // print errors
+            for e in errors {
+                error!("{:?}", e);
+            }
+            Err(Error::Custom(
+                "Error(s) during splitting. Check logs.".to_string(),
+            ))
+        }
+    }
+
     /// Split a single file into multiple fixed size ones
-    fn split(src: &Path, dst: &Path, split_size: usize) -> Result<(), Error> {
+    fn split_file(src: &Path, dst: &Path, split_size: usize) -> Result<(), Error> {
         debug!("Using default splitter with size {split_size}");
         let corpus = File::open(&src)?;
         let corpus_buf = BufReader::new(corpus);

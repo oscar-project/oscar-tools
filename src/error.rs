@@ -2,7 +2,14 @@
 pub enum Error {
     Io(std::io::Error),
     Json(serde_json::Error),
+    ThreadPoolBuild(rayon::ThreadPoolBuildError),
     Custom(String),
+}
+
+impl From<rayon::ThreadPoolBuildError> for Error {
+    fn from(v: rayon::ThreadPoolBuildError) -> Self {
+        Self::ThreadPoolBuild(v)
+    }
 }
 
 impl From<serde_json::Error> for Error {

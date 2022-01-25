@@ -11,13 +11,30 @@ pub struct SplitLatest {
     src: PathBuf,
     #[structopt(help = "dest corpus folder.")]
     dst: PathBuf,
-    #[structopt(short, long, default_value = "10000000", help = "dest corpus folder.")]
+    #[structopt(
+        short,
+        long,
+        default_value = "1000000000",
+        help = "dest corpus folder."
+    )]
     size: usize,
+    #[structopt(
+        short,
+        long,
+        default_value = "0",
+        help = "Number of threads (ignored if source is a single file)"
+    )]
+    num_threads: usize,
 }
 
 impl Runnable for SplitLatest {
     fn run(&self) -> Result<(), Error> {
-        OscarDoc::split(&self.src, &self.dst, self.size)?;
+        if self.src.is_file() {
+            OscarDoc::split_file(&self.src, &self.dst, self.size)?;
+        }
+        if self.src.is_dir() {
+            OscarDoc::split_all(&self.src, &self.dst, self.size, self.num_threads)?;
+        }
         Ok(())
     }
 }
