@@ -1,3 +1,4 @@
+//! Fix of language codes for OSCAR Schema v1.2
 use crate::cli::Runnable;
 use crate::error::Error;
 use std::collections::HashMap;

@@ -1,3 +1,4 @@
+//! Version trait
 pub(crate) trait Schema {
     fn version() -> Version;
 }

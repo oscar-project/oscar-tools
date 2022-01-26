@@ -1,3 +1,6 @@
+//! Splitting of OSCAR Schema v2 corpora
+//!
+//! Untested but should work on OSCAR Schema v1 corpora
 use std::path::PathBuf;
 
 use crate::{impls::OscarDoc, ops::Split};

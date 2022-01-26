@@ -1,3 +1,4 @@
+//! Commands enum
 use crate::error::Error;
 use crate::extract_clean::ExtractCleanCorpus;
 use crate::lang_codes::UpdateLangCodes;

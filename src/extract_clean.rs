@@ -1,4 +1,4 @@
-/// Extracts a clean corpus (= documents with no annotation)
+//! Extracts a clean corpus (= documents with no annotation)
 use std::{
     fs::File,
     io::{BufRead, BufReader, BufWriter, Write},
@@ -9,6 +9,7 @@ use structopt::StructOpt;
 
 use crate::cli::Runnable;
 
+/// Extracts a clean (=no annotations) corpus from a single OSCAR Schema v2 corpus.
 #[derive(StructOpt, Debug)]
 pub struct ExtractCleanCorpus {
     #[structopt(help = "Path to corpus")]
@@ -18,7 +19,7 @@ pub struct ExtractCleanCorpus {
 }
 
 /// Checks whether a document has no annotations
-/// returns [True] if the document has no annotations
+/// returns `True` if the document has no annotations
 fn is_clean(document: &serde_json::Value) -> bool {
     document["metadata"]["annotation"] == serde_json::Value::Null
 }

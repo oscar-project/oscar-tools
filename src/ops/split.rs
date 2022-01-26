@@ -1,4 +1,6 @@
-/*! Splitting operations
+/*! Splitting operations.
+
+ These operations split the corpus into smaller files of a defined max size.
 !*/
 use std::{
     borrow::Cow,
@@ -10,6 +12,10 @@ use std::{
 use crate::error::Error;
 use rayon::iter::{ParallelBridge, ParallelIterator};
 
+/// Rotating file writer.
+///
+/// Files are named `foo.bar`, and if there is a need of more than one file,
+/// `foo.bar` is renamed `foo_part_1.bar`, and so on.
 struct SplitWriter {
     dst: PathBuf,
     fp: Option<File>,
@@ -19,6 +25,7 @@ struct SplitWriter {
 }
 
 impl SplitWriter {
+    /// Create a new writer. `max_size` is in bytes.
     pub fn new(dst: &Path, max_size: usize) -> Self {
         Self {
             dst: dst.to_path_buf(),
@@ -49,6 +56,7 @@ impl SplitWriter {
     }
 
     // TODO: return error if no stem/extension
+    /// Get the next filename **and** bump `self.nb_files`
     fn next_filename(&mut self) -> Option<Cow<Path>> {
         if self.nb_files == 0 {
             self.nb_files += 1;
@@ -74,6 +82,7 @@ impl SplitWriter {
         }
     }
 
+    /// Close current file and open a new one
     pub fn rotate_file(&mut self) -> std::io::Result<()> {
         if self.nb_files == 1 {
             // moving foo.bar to foo_part_1.bar
