@@ -41,3 +41,70 @@ impl Runnable for SplitLatest {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use std::{fs::File, io::Write};
+    use tempfile::tempdir;
+
+    use crate::{impls::OscarDoc, ops::Split};
+
+    pub fn setup_oscardoc() -> String {
+        let mut corpus = String::new();
+        for i in 0..10000 {
+            corpus.push_str(&format!(r#"{{"item":{}}}"#, i));
+            corpus.push('\n');
+        }
+
+        corpus
+    }
+
+    #[test]
+    fn test_split_file() {
+        let corpus = setup_oscardoc();
+
+        // write corpus to file
+        let test_dir = tempdir().unwrap();
+        let corpus_orig = test_dir.path().join("corpus-orig.jsonl");
+        let mut f = File::create(&corpus_orig).unwrap();
+        f.write_all(&corpus.as_bytes()).unwrap();
+
+        // split
+        let split_folder = test_dir.path().join("split");
+        std::fs::create_dir(&split_folder).unwrap();
+
+        let corpus_dst = split_folder.join("corpus-split.jsonl");
+        OscarDoc::split_file(&corpus_orig, &corpus_dst, 1000).unwrap();
+
+        // let mut split_files: Vec<_> = std::fs::read_dir(split_folder)
+        //     .unwrap()
+        //     .collect::<Result<Vec<_>, _>>()
+        //     .unwrap();
+        // split_files.sort_by(|a, b| a.file_name().cmp(&b.file_name()));
+
+        let mut corpus_from_split = String::with_capacity(corpus.len());
+
+        for file in std::fs::read_dir(split_folder).unwrap() {
+            // for file in split_files {
+            let file = file.unwrap();
+            let split = std::fs::read_to_string(file.path()).unwrap();
+            corpus_from_split.push_str(&split);
+        }
+
+        let mut from_split_corpus: Vec<&str> = corpus.lines().collect();
+        from_split_corpus.sort();
+        let mut from_split_list: Vec<&str> = corpus_from_split.lines().collect();
+        from_split_list.sort();
+
+        assert_eq!(from_split_corpus, from_split_list);
+        //read again
+        // let corpus_from_splitted =
+        // create a tempfile with the corpus in it
+        // make a directory
+        // split
+        // ensure each split is < target
+        // read splits, concat to string
+        // check that corpus = read
+    }
+}
