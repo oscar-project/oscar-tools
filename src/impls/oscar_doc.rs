@@ -2,7 +2,7 @@
 //!
 //! Implementations mostly use default trait implementations, as the format is simple.
 use crate::{
-    ops::Split,
+    ops::{Compress, Split},
     versions::{Schema, Version},
 };
 
@@ -19,3 +19,4 @@ impl Schema for OscarDoc {
 
 /// Use default implementation of splitting (see [crate::ops::Split])
 impl Split for OscarDoc {}
+impl Compress for OscarDoc {}

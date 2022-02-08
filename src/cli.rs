@@ -1,4 +1,5 @@
 //! Commands enum
+use crate::compress::CompressCorpus;
 use crate::error::Error;
 use crate::extract_clean::ExtractCleanCorpus;
 use crate::lang_codes::UpdateLangCodes;
@@ -25,6 +26,8 @@ pub enum OscarTools {
     ExtractCleanCorpus(ExtractCleanCorpus),
     #[structopt(about = "Split a corpus into a set of smaller files")]
     SplitLatest(SplitLatest),
+    #[structopt(about = "compress")]
+    Compress(CompressCorpus),
 }
 
 impl Runnable for OscarTools {
@@ -33,6 +36,7 @@ impl Runnable for OscarTools {
             OscarTools::UpdateLangCodes(u) => u.run(),
             OscarTools::ExtractCleanCorpus(u) => u.run(),
             OscarTools::SplitLatest(u) => u.run(),
+            OscarTools::Compress(u) => u.run(),
         }
     }
 }

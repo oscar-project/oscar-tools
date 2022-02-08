@@ -77,12 +77,6 @@ mod tests {
         let corpus_dst = split_folder.join("corpus-split.jsonl");
         OscarDoc::split_file(&corpus_orig, &corpus_dst, 1000).unwrap();
 
-        // let mut split_files: Vec<_> = std::fs::read_dir(split_folder)
-        //     .unwrap()
-        //     .collect::<Result<Vec<_>, _>>()
-        //     .unwrap();
-        // split_files.sort_by(|a, b| a.file_name().cmp(&b.file_name()));
-
         let mut corpus_from_split = String::with_capacity(corpus.len());
 
         for file in std::fs::read_dir(split_folder).unwrap() {
@@ -98,13 +92,5 @@ mod tests {
         from_split_list.sort();
 
         assert_eq!(from_split_corpus, from_split_list);
-        //read again
-        // let corpus_from_splitted =
-        // create a tempfile with the corpus in it
-        // make a directory
-        // split
-        // ensure each split is < target
-        // read splits, concat to string
-        // check that corpus = read
     }
 }
