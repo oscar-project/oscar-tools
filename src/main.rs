@@ -3,6 +3,7 @@
 extern crate log;
 
 mod cli;
+mod compress;
 mod error;
 mod extract_clean;
 mod impls;
