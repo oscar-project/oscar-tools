@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{BufRead, BufReader, Write},
+    io::{BufRead, BufReader, Read, Write},
     path::{Path, PathBuf},
 };
 
@@ -16,7 +16,6 @@ pub trait Compress {
             return Ok(());
         }
         let src_file = File::open(src)?;
-        let mut b = BufReader::new(src_file);
 
         // gen filename
         let filename = src.file_name().unwrap();
@@ -26,18 +25,8 @@ pub trait Compress {
 
         info!("compressing {:?} to {:?}", src, dst);
 
-        let dest_file = File::create(dst)?;
-        let mut enc = GzEncoder::new(dest_file, Compression::default());
-
-        let mut length = 1;
-        while length > 0 {
-            let buffer = b.fill_buf()?;
-            enc.write_all(buffer)?;
-            length = buffer.len();
-            b.consume(length);
-        }
-
-        enc.try_finish()?;
+        let mut dest_file = File::create(dst)?;
+        compress(&mut dest_file, src_file)?;
 
         if del_src {
             std::fs::remove_file(src)?;
@@ -74,5 +63,42 @@ pub trait Compress {
         };
 
         Ok(())
+    }
+}
+
+/// Compress a reader into a writer.
+/// Consumes the whole reader.
+// TODO: should it be inside the compress trait?
+fn compress<T: Read>(dest_file: &mut impl Write, r: T) -> Result<(), Error> {
+    let mut b = BufReader::new(r);
+    let mut enc = GzEncoder::new(dest_file, Compression::default());
+    let mut length = 1;
+    while length > 0 {
+        let buffer = b.fill_buf()?;
+        enc.write_all(buffer)?;
+        length = buffer.len();
+        b.consume(length);
+    }
+    enc.try_finish()?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use std::io::Read;
+
+    use super::compress;
+
+    #[test]
+    fn test_compress() {
+        // create content and compress
+        let content = "foo";
+        let mut compressed = Vec::new();
+        compress(&mut compressed, content.as_bytes()).unwrap();
+
+        let mut reader = flate2::read::GzDecoder::new(&*compressed);
+        let mut decompressed = String::with_capacity(content.len());
+        reader.read_to_string(&mut decompressed).unwrap();
+        assert_eq!(content, decompressed);
     }
 }
