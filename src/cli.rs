@@ -2,6 +2,7 @@
 use crate::compress::CompressCorpus;
 use crate::error::Error;
 use crate::extract_clean::ExtractCleanCorpus;
+use crate::extract_text::ExtractText;
 use crate::lang_codes::UpdateLangCodes;
 use crate::split_latest::SplitLatest;
 use structopt::StructOpt;
@@ -26,8 +27,12 @@ pub enum OscarTools {
     ExtractCleanCorpus(ExtractCleanCorpus),
     #[structopt(about = "Split a corpus into a set of smaller files")]
     SplitLatest(SplitLatest),
-    #[structopt(about = "compress")]
+    #[structopt(about = "Compress corpus. Useable on files and folders (compresses on a depth=1)")]
     Compress(CompressCorpus),
+    #[structopt(
+        about = "Extracts textual information, discarding metadata. Produces a corpus following OSCAR Scheme v1"
+    )]
+    Extract(ExtractText),
 }
 
 impl Runnable for OscarTools {
@@ -37,6 +42,7 @@ impl Runnable for OscarTools {
             OscarTools::ExtractCleanCorpus(u) => u.run(),
             OscarTools::SplitLatest(u) => u.run(),
             OscarTools::Compress(u) => u.run(),
+            OscarTools::Extract(u) => u.run(),
         }
     }
 }
