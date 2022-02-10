@@ -5,7 +5,7 @@ use crate::extract_clean::ExtractCleanCorpus;
 use crate::extract_text::ExtractText;
 use crate::lang_codes::UpdateLangCodes;
 use crate::split_latest::SplitLatest;
-use structopt::StructOpt;
+use clap::StructOpt;
 
 /// Runnable traits have to be implemented by commands
 /// in order to be executed from CLI.

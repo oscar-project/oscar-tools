@@ -5,7 +5,7 @@ use std::{
     path::PathBuf,
 };
 
-use structopt::StructOpt;
+use clap::StructOpt;
 
 use crate::cli::Runnable;
 

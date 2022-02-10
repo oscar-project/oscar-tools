@@ -4,7 +4,7 @@
 use std::path::PathBuf;
 
 use crate::{impls::OscarDoc, ops::Compress};
-use structopt::StructOpt;
+use clap::StructOpt;
 
 use crate::{cli::Runnable, error::Error};
 
@@ -15,7 +15,7 @@ pub struct CompressCorpus {
     #[structopt(help = "dest corpus folder.")]
     dst: PathBuf,
 
-    #[structopt(help = "delete source files", short = "m")]
+    #[structopt(help = "delete source files", short = 'm')]
     del_src: bool,
 
     #[structopt(

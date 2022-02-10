@@ -4,7 +4,7 @@
 use std::path::PathBuf;
 
 use crate::{impls::OscarDoc, ops::Split};
-use structopt::StructOpt;
+use clap::StructOpt;
 
 use crate::{cli::Runnable, error::Error};
 
