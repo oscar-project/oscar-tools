@@ -4,7 +4,6 @@
 use std::{
     fs::File,
     io::{BufRead, BufReader, Read, Write},
-    path::PathBuf,
 };
 
 use serde_json::Value;
@@ -85,15 +84,21 @@ impl ExtractText for OscarDoc {
         }
         let src_file = File::open(src)?;
 
-        // gen filename
-        let filename = src.file_name().unwrap();
-        let mut dst: PathBuf = [dst.as_os_str(), filename].iter().collect();
-        let extension = String::from(dst.extension().unwrap().to_str().unwrap());
-        dst.set_extension(extension + ".txt");
+        if dst.exists() {
+            error!("File {:?} already exists!", dst);
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::AlreadyExists,
+                format!("{:?}", dst),
+            )
+            .into());
+        }
+
+        let mut dst = dst.to_path_buf();
+        dst.set_extension("txt");
+        let mut dest_file = File::create(&dst)?;
 
         info!("extracting text from {:?} to {:?}", src, dst);
 
-        let mut dest_file = File::create(dst)?;
         OscarDoc::extract(src_file, &mut dest_file)?;
 
         if del_src {
@@ -106,7 +111,6 @@ impl ExtractText for OscarDoc {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::Value;
 
     use crate::impls::OscarDoc;
 
