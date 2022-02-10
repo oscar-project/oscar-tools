@@ -4,6 +4,8 @@ pub enum Error {
     Io(std::io::Error),
     Json(serde_json::Error),
     ThreadPoolBuild(rayon::ThreadPoolBuildError),
+    MissingContent(serde_json::Value),
+    MalformedContent(serde_json::Value),
     Custom(String),
 }
 
