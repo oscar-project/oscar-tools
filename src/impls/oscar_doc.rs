@@ -28,6 +28,7 @@ impl Command for OscarDoc {
     where
         Self: Sized,
     {
+        // add commands here
         let subcommand = clap::App::new(Self::version().to_string())
             .subcommand(SplitDoc::subcommand())
             .subcommand(CompressDoc::subcommand());
@@ -47,12 +48,14 @@ impl Command for OscarDoc {
         }
     }
 }
+
 impl Schema for OscarDoc {
     fn version() -> Version {
         Version::new(2, 0, 0)
     }
 }
 
+/// internal struct for split implementation
 struct SplitDoc;
 /// Use default implementation of splitting (see [crate::ops::Split])
 impl Split for SplitDoc {}
@@ -106,6 +109,7 @@ impl Command for SplitDoc {
     }
 }
 
+/// internal struct for compression op implementation
 struct CompressDoc;
 impl Compress for CompressDoc {}
 impl Command for CompressDoc {
@@ -150,9 +154,9 @@ impl Command for CompressDoc {
         Ok(())
     }
 }
-// impl DummyOp for OscarDoc {}
 
 /// impl block for helper functions related to [ExtractText].
+//TODO: move into a proper op
 impl OscarDoc {
     /// Extracts content from a Document.
     ///
@@ -195,6 +199,7 @@ impl OscarDoc {
     }
 }
 
+// TODO move into a proper op
 impl ExtractText for OscarDoc {
     fn extract_text(
         src: &std::path::Path,

@@ -1,3 +1,4 @@
+/*! Compression operation, using gzip !*/
 use std::{
     fs::File,
     io::{BufRead, BufReader, Read, Write},
@@ -10,6 +11,10 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use crate::error::Error;
 
 pub trait Compress {
+    /// Compress a file located at `src` to `dst`.
+    /// If `del_src` is set to `true`, removes the file at `src` upon compression completion.
+    ///
+    /// `src` has to exist and be a file, and `dst` should not exist.
     fn compress_file(src: &Path, dst: &Path, del_src: bool) -> Result<(), Error> {
         if !src.is_file() {
             warn!("{:?} is not a file: ignoring", src);
@@ -25,6 +30,13 @@ pub trait Compress {
 
         info!("compressing {:?} to {:?}", src, dst);
 
+        if dst.exists() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::AlreadyExists,
+                format!("{:?}", dst),
+            )
+            .into());
+        }
         let mut dest_file = File::create(dst)?;
         compress(&mut dest_file, src_file)?;
 
@@ -35,6 +47,10 @@ pub trait Compress {
         Ok(())
     }
 
+    /// Compress files in provided folder.
+    /// If `del_src` is set to `true`, removes the compressed files at `src` upon compression completion.
+    /// The compression is only done at depth=1.
+    /// `src` has to exist and be a file, and `dst` should not exist.
     fn compress_folder(
         src: &Path,
         dst: &Path,
