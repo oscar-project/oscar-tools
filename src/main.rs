@@ -13,19 +13,34 @@ mod ops;
 mod split_latest;
 mod versions;
 
-use clap::StructOpt;
-use cli::OscarTools;
-use cli::Runnable;
+use crate::error::Error;
+use clap::AppSettings;
+use clap::ArgMatches;
 use env_logger::Env;
 
+use crate::cli::Command;
+use crate::impls::OscarDoc;
+
+fn build_app() -> clap::App<'static> {
+    clap::App::new("oscar-tools")
+        .setting(AppSettings::ArgRequiredElseHelp)
+        .subcommand(OscarDoc::subcommand())
+}
+
+fn run(matches: ArgMatches) -> Result<(), Error> {
+    let (version, subcommand) = matches
+        .subcommand()
+        .ok_or(Error::Custom("No version provided!".to_string()))?;
+    match version {
+        "v2.0.0" => OscarDoc::run(subcommand),
+        x => Err(Error::Custom(format!("Unknown version {x}"))),
+    }
+}
 fn main() -> Result<(), error::Error> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
-    // get options from args
-    let opt = OscarTools::parse();
-
-    // run command
-    opt.run()?;
-
+    let app = build_app();
+    let matches = app.get_matches();
+    run(matches)?;
     Ok(())
 }

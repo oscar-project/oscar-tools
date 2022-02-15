@@ -1,4 +1,6 @@
 //! Version trait
+
+use std::fmt::Display;
 pub(crate) trait Schema {
     fn version() -> Version;
 }
@@ -17,5 +19,11 @@ impl Version {
             minor,
             patch,
         }
+    }
+}
+
+impl Display for Version {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "v{}.{}.{}", self.major, self.minor, self.patch)
     }
 }
