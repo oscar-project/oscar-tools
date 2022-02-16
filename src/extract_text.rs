@@ -38,8 +38,6 @@ impl Runnable for ExtractText {
 mod tests {
     use std::io::Write;
 
-    use tempfile;
-
     use crate::{impls::OscarDoc, ops::ExtractText};
 
     pub fn setup_oscardoc() -> (String, String) {

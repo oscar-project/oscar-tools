@@ -365,7 +365,7 @@ quux
     fn test_compress() {
         let content = setup_oscardoc();
         let content: Vec<&str> = content.lines().collect();
-        let content_files = (&content).chunks(1000).into_iter();
+        let content_files = (&content).chunks(1000);
         let tmpdir = tempfile::tempdir().unwrap();
         for (idx, chunk) in content_files.enumerate() {
             // should be safe since it does not rely on rust destructor
@@ -402,7 +402,7 @@ quux
         // sort results
         decompressed_data.sort();
         let mut content = content;
-        content.sort();
+        content.sort_unstable();
         assert_eq!(decompressed_data, content);
     }
 
@@ -414,7 +414,7 @@ quux
         let test_dir = tempdir().unwrap();
         let corpus_orig = test_dir.path().join("corpus-orig.jsonl");
         let mut f = File::create(&corpus_orig).unwrap();
-        f.write_all(&corpus.as_bytes()).unwrap();
+        f.write_all(corpus.as_bytes()).unwrap();
 
         // split
         let split_folder = test_dir.path().join("split");
@@ -433,9 +433,9 @@ quux
         }
 
         let mut from_split_corpus: Vec<&str> = corpus.lines().collect();
-        from_split_corpus.sort();
+        from_split_corpus.sort_unstable();
         let mut from_split_list: Vec<&str> = corpus_from_split.lines().collect();
-        from_split_list.sort();
+        from_split_list.sort_unstable();
 
         assert_eq!(from_split_corpus, from_split_list);
     }
