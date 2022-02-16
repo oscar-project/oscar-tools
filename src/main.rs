@@ -3,29 +3,46 @@
 extern crate log;
 
 mod cli;
-mod compress;
 mod error;
 mod extract_clean;
 mod extract_text;
 mod impls;
 mod lang_codes;
 mod ops;
-mod split_latest;
 mod versions;
 
-use cli::OscarTools;
-use cli::Runnable;
+use crate::error::Error;
+use clap::AppSettings;
+use clap::ArgMatches;
 use env_logger::Env;
-use structopt::StructOpt;
 
+use crate::cli::Command;
+use crate::impls::OscarDoc;
+
+#[cfg(not(tarpaulin_include))]
+fn build_app() -> clap::App<'static> {
+    clap::App::new("oscar-tools")
+        .setting(AppSettings::ArgRequiredElseHelp)
+        .subcommand(OscarDoc::subcommand())
+}
+
+#[cfg(not(tarpaulin_include))]
+fn run(matches: ArgMatches) -> Result<(), Error> {
+    let (version, subcommand) = matches
+        .subcommand()
+        .ok_or_else(|| Error::Custom("No version provided!".to_string()))?;
+    match version {
+        "v2.0.0" => OscarDoc::run(subcommand),
+        x => Err(Error::Custom(format!("Unknown version {x}"))),
+    }
+}
+
+#[cfg(not(tarpaulin_include))]
 fn main() -> Result<(), error::Error> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
-    // get options from args
-    let opt = OscarTools::from_args();
-
-    // run command
-    opt.run()?;
-
+    let app = build_app();
+    let matches = app.get_matches();
+    run(matches)?;
     Ok(())
 }

@@ -1,9 +1,9 @@
 //! Fix of language codes for OSCAR Schema v1.2
 use crate::cli::Runnable;
 use crate::error::Error;
+use clap::StructOpt;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
 /// updates language codes in two ways.

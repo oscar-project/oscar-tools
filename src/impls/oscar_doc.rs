@@ -4,11 +4,14 @@
 use std::{
     fs::File,
     io::{BufRead, BufReader, Read, Write},
+    path::PathBuf,
 };
 
+use clap::{arg, ArgMatches};
 use serde_json::Value;
 
 use crate::{
+    cli::Command,
     error::Error,
     ops::{Compress, ExtractText, Split},
     versions::{Schema, Version},
@@ -17,7 +20,34 @@ use crate::{
 /// OSCAR Schema v2.
 ///
 /// Document-oriented, one document per line, formatted in JSONLines.
+//#[derive(clap::StructOpt)]
 pub struct OscarDoc;
+
+impl Command for OscarDoc {
+    fn subcommand() -> clap::App<'static>
+    where
+        Self: Sized,
+    {
+        // add commands here
+        let subcommand = clap::App::new(Self::version().to_string())
+            .subcommand(SplitDoc::subcommand())
+            .subcommand(CompressDoc::subcommand());
+
+        subcommand
+    }
+
+    fn run(matches: &ArgMatches) -> Result<(), Error> {
+        let (subcommand, matches) = matches.subcommand().unwrap();
+        debug!("subcommand is {subcommand}");
+        match subcommand {
+            "split" => SplitDoc::run(matches),
+            "compress" => CompressDoc::run(matches),
+            x => Err(Error::Custom(format!(
+                "{x} op is not supported on this corpus version"
+            ))),
+        }
+    }
+}
 
 impl Schema for OscarDoc {
     fn version() -> Version {
@@ -25,11 +55,108 @@ impl Schema for OscarDoc {
     }
 }
 
+/// internal struct for split implementation
+struct SplitDoc;
 /// Use default implementation of splitting (see [crate::ops::Split])
-impl Split for OscarDoc {}
-impl Compress for OscarDoc {}
+impl Split for SplitDoc {}
+impl Command for SplitDoc {
+    fn subcommand() -> clap::App<'static>
+    where
+        Self: Sized,
+    {
+        clap::App::new("split")
+            .arg(arg!([SOURCE] "Corpus source file/folder. If folder, splits corpus files in provided folder"))
+            .arg(arg!([DESTINATION] "File/folder to write to."))
+            .arg(arg!(-s --size <SIZE_MB> "Split size (in Bytes)").default_value("1000000000").required(false))
+            .arg(arg!(-J --num_threads <NUM_THREADS> "Number of threads to use (iif source is a folder). If 0, take all available").default_value("0").required(false))
+    }
+
+    fn run(matches: &ArgMatches) -> Result<(), Error>
+    where
+        Self: Sized,
+    {
+        debug!("running splitting");
+        let src: PathBuf = matches
+            .value_of("SOURCE")
+            .expect("Value of 'SOURCE' is required.")
+            .into();
+        let dst: PathBuf = matches
+            .value_of("DESTINATION")
+            .expect("Value of 'DESTINATION' is required.")
+            .into();
+        let size: usize = matches
+            .value_of("size")
+            .unwrap()
+            .parse()
+            .expect("'size' has to be a number.");
+        let num_threads: usize = matches
+            .value_of("num_threads")
+            .unwrap()
+            .parse()
+            .expect("'num_threads' has to be a number.");
+
+        if src.is_file() {
+            SplitDoc::split_file(&src, &dst, size)?;
+        } else if src.is_dir() {
+            SplitDoc::split_all(&src, &dst, size, num_threads)?;
+        } else {
+            return Err(
+                std::io::Error::new(std::io::ErrorKind::NotFound, format!("{:?}", src)).into(),
+            );
+        }
+
+        Ok(())
+    }
+}
+
+/// internal struct for compression op implementation
+struct CompressDoc;
+impl Compress for CompressDoc {}
+impl Command for CompressDoc {
+    fn subcommand() -> clap::App<'static>
+    where
+        Self: Sized,
+    {
+        clap::App::new("compress")
+            .arg(arg!([SOURCE] "Corpus source file/folder. If folder, splits corpus files in provided folder"))
+            .arg(arg!([DESTINATION] "File/folder to write to."))
+            .arg(arg!(--del_src "If set, deletes source files as they are being compressed.").required(false))
+            .arg(arg!(-J --num_threads <NUM_THREADS> "Number of threads to use (iif source is a folder). If 0, take all available").default_value("0").required(false))
+    }
+
+    fn run(matches: &ArgMatches) -> Result<(), Error>
+    where
+        Self: Sized,
+    {
+        let src: PathBuf = matches
+            .value_of("SOURCE")
+            .expect("Value of 'SOURCE' is required.")
+            .into();
+        let dst: PathBuf = matches
+            .value_of("DESTINATION")
+            .expect("Value of 'DESTINATION' is required.")
+            .into();
+        let del_src = matches.is_present("del_src");
+        let num_threads: usize = matches
+            .value_of("num_threads")
+            .unwrap()
+            .parse()
+            .expect("'num_threads' has to be a number.");
+        if src.is_file() {
+            CompressDoc::compress_file(&src, &dst, del_src)?;
+        } else if src.is_dir() {
+            CompressDoc::compress_folder(&src, &dst, del_src, num_threads)?;
+        } else {
+            return Err(
+                std::io::Error::new(std::io::ErrorKind::NotFound, format!("{:?}", src)).into(),
+            );
+        }
+        Ok(())
+    }
+}
 
 /// impl block for helper functions related to [ExtractText].
+//TODO: move into a proper op
 impl OscarDoc {
     /// Extracts content from a Document.
     ///
@@ -72,6 +199,7 @@ impl OscarDoc {
     }
 }
 
+// TODO move into a proper op
 impl ExtractText for OscarDoc {
     fn extract_text(
         src: &std::path::Path,
@@ -112,7 +240,16 @@ impl ExtractText for OscarDoc {
 #[cfg(test)]
 mod tests {
 
-    use crate::impls::OscarDoc;
+    use super::CompressDoc;
+    use super::SplitDoc;
+    use crate::ops::Split;
+    use crate::{impls::OscarDoc, ops::Compress};
+    use std::{
+        fs::File,
+        io::{Read, Write},
+    };
+
+    use tempfile::{self, tempdir};
 
     fn get_doc() -> &'static str {
         r#"{"content":"foo\nbar\nbaz\nquux"}
@@ -210,5 +347,96 @@ quux
 
         let extracted = OscarDoc::extract_from_doc(document).unwrap();
         assert_eq!(extracted, content);
+    }
+
+    pub fn setup_oscardoc() -> String {
+        let mut corpus = String::new();
+        for i in 0..10000 {
+            corpus.push_str(&format!(r#"{{"item":{}}}"#, i));
+            corpus.push('\n');
+        }
+
+        corpus
+    }
+
+    // the way of checking results is bad, since we merge then sort results
+    // we should rather check the individual files one by one
+    #[test]
+    fn test_compress() {
+        let content = setup_oscardoc();
+        let content: Vec<&str> = content.lines().collect();
+        let content_files = (&content).chunks(1000);
+        let tmpdir = tempfile::tempdir().unwrap();
+        for (idx, chunk) in content_files.enumerate() {
+            // should be safe since it does not rely on rust destructor
+            // + it is in a tempfile that will be cleaned at the exit of the test
+            let tempfile_path = tmpdir.path().join(format!("file_{idx}.jsonl"));
+            let mut tempfile = File::create(tempfile_path).unwrap();
+            tempfile.write_all(chunk.join("\n").as_bytes()).unwrap();
+        }
+
+        // create destination path and compress
+        let tmpdst = tempfile::tempdir().unwrap();
+        CompressDoc::compress_folder(tmpdir.path(), tmpdst.path(), false, 1).unwrap();
+
+        println!(
+            "{:?}",
+            std::fs::read_dir(tmpdir.path())
+                .unwrap()
+                .collect::<Vec<_>>()
+        );
+        // let mut items_decompressed = Vec::new();
+
+        let mut decompressed_data = Vec::new();
+        for file in std::fs::read_dir(tmpdst.path()).unwrap() {
+            println!("file: {:?}", file);
+            // for file in split_files {
+            let file = file.unwrap();
+            let file = File::open(file.path()).unwrap();
+            let mut reader = flate2::read::GzDecoder::new(file);
+            let mut decompressed = String::new();
+            reader.read_to_string(&mut decompressed).unwrap();
+            decompressed_data.extend(decompressed.lines().map(|x| x.to_string()).into_iter());
+        }
+
+        // sort results
+        decompressed_data.sort();
+        let mut content = content;
+        content.sort_unstable();
+        assert_eq!(decompressed_data, content);
+    }
+
+    #[test]
+    fn test_split_file() {
+        let corpus = setup_oscardoc();
+
+        // write corpus to file
+        let test_dir = tempdir().unwrap();
+        let corpus_orig = test_dir.path().join("corpus-orig.jsonl");
+        let mut f = File::create(&corpus_orig).unwrap();
+        f.write_all(corpus.as_bytes()).unwrap();
+
+        // split
+        let split_folder = test_dir.path().join("split");
+        std::fs::create_dir(&split_folder).unwrap();
+
+        let corpus_dst = split_folder.join("corpus-split.jsonl");
+        SplitDoc::split_file(&corpus_orig, &corpus_dst, 1000).unwrap();
+
+        let mut corpus_from_split = String::with_capacity(corpus.len());
+
+        for file in std::fs::read_dir(split_folder).unwrap() {
+            // for file in split_files {
+            let file = file.unwrap();
+            let split = std::fs::read_to_string(file.path()).unwrap();
+            corpus_from_split.push_str(&split);
+        }
+
+        let mut from_split_corpus: Vec<&str> = corpus.lines().collect();
+        from_split_corpus.sort_unstable();
+        let mut from_split_list: Vec<&str> = corpus_from_split.lines().collect();
+        from_split_list.sort_unstable();
+
+        assert_eq!(from_split_corpus, from_split_list);
     }
 }

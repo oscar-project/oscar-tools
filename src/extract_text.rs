@@ -6,8 +6,8 @@ use std::path::PathBuf;
 use crate::impls::OscarDoc;
 use crate::ops::ExtractText as ET;
 use crate::{cli::Runnable, error::Error};
+use clap::StructOpt;
 use log::error;
-use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
 pub struct ExtractText {
@@ -16,7 +16,7 @@ pub struct ExtractText {
     #[structopt(help = "dest corpus folder.")]
     dst: PathBuf,
 
-    #[structopt(help = "delete source files", short = "m")]
+    #[structopt(help = "delete source files", short = 'm')]
     del_src: bool,
 }
 
@@ -37,8 +37,6 @@ impl Runnable for ExtractText {
 #[cfg(test)]
 mod tests {
     use std::io::Write;
-
-    use tempfile;
 
     use crate::{impls::OscarDoc, ops::ExtractText};
 
