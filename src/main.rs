@@ -19,21 +19,25 @@ use env_logger::Env;
 use crate::cli::Command;
 use crate::impls::OscarDoc;
 
+#[cfg(not(tarpaulin_include))]
 fn build_app() -> clap::App<'static> {
     clap::App::new("oscar-tools")
         .setting(AppSettings::ArgRequiredElseHelp)
         .subcommand(OscarDoc::subcommand())
 }
 
+#[cfg(not(tarpaulin_include))]
 fn run(matches: ArgMatches) -> Result<(), Error> {
     let (version, subcommand) = matches
         .subcommand()
-        .ok_or(Error::Custom("No version provided!".to_string()))?;
+        .ok_or_else(|| Error::Custom("No version provided!".to_string()))?;
     match version {
         "v2.0.0" => OscarDoc::run(subcommand),
         x => Err(Error::Custom(format!("Unknown version {x}"))),
     }
 }
+
+#[cfg(not(tarpaulin_include))]
 fn main() -> Result<(), error::Error> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
