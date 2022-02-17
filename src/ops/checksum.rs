@@ -128,12 +128,87 @@ mod tests {
     use sha2::Digest;
     use std::fs::File;
     use std::io::Write;
+    use std::path::PathBuf;
+    use tempfile::TempDir;
 
     use sha2::Sha256;
 
     use crate::error::Error;
     use crate::ops::Checksum;
 
+    fn gen_dummy_corpus() -> Result<TempDir, Error> {
+        let corpus_dir = tempfile::tempdir().unwrap();
+
+        let (langs, contents): (Vec<&str>, Vec<&str>) = [
+            ("fr", r#"{{"content":"foo_french"}}"#),
+            ("en", r#"{{"content":"foo_english"}}"#),
+            ("de", r#"{{"content":"foo_german"}}"#),
+            ("es", r#"{{"content":"foo_spanish"}}"#),
+        ]
+        .iter()
+        .cloned()
+        .unzip();
+        for (lang, content) in langs.iter().zip(contents.iter()) {
+            let path = corpus_dir.path();
+            let lang_dir = path.join(lang);
+            std::fs::create_dir(&lang_dir)?;
+            let lang_text_file = lang_dir.clone().join(format!("{lang}.jsonl"));
+            let mut f = File::create(&lang_text_file)?;
+            write!(&mut f, "{content}")?;
+        }
+
+        Ok(corpus_dir)
+    }
+    #[test]
+    fn test_write_checksum() {
+        struct DummyChecksum;
+        impl Checksum for DummyChecksum {}
+        let hashes = vec![
+            (PathBuf::from("fr.txt"), "hash_for_fr.txt".to_string()),
+            (PathBuf::from("en.txt"), "hash_for_en.txt".to_string()),
+            (PathBuf::from("es.txt"), "hash_for_es.txt".to_string()),
+            (PathBuf::from("de.txt"), "hash_for_de.txt".to_string()),
+        ];
+        let expected = "hash_for_fr.txt fr.txt
+hash_for_en.txt en.txt
+hash_for_es.txt es.txt
+hash_for_de.txt de.txt
+";
+        let mut checksum_writer = Vec::new();
+        DummyChecksum::write_checksum(&mut checksum_writer, hashes).unwrap();
+        let checksum_string = String::from_utf8(checksum_writer).unwrap();
+        assert_eq!(expected, &checksum_string);
+    }
+
+    #[test]
+    fn test_get_write_hashes() -> Result<(), Error> {
+        struct DummyChecksum;
+        impl Checksum for DummyChecksum {}
+
+        let lang = tempfile::tempdir()?;
+        let lang_corpus = lang.path().join("fr.txt");
+        let text = "foo bar baz quux";
+        let mut f = File::create(&lang_corpus)?;
+        f.write(text.as_bytes())?;
+
+        DummyChecksum::get_write_hashes(&lang.path())?;
+
+        let checksum_file = lang.path().join("checksum.sha256");
+        let checksums = std::fs::read_to_string(&checksum_file)?;
+
+        let mut x = checksums.split(" ").take(2);
+        let (checksum, filename) = (x.next(), x.next());
+
+        let mut hasher = Sha256::new();
+        hasher.update(text.as_bytes());
+        let expected_checksum = format!("{:x}", hasher.finalize_reset());
+        let expected_filename = "fr.txt\n";
+
+        assert_eq!(checksum.unwrap(), &expected_checksum);
+        assert_eq!(filename.unwrap(), expected_filename);
+
+        Ok(())
+    }
     #[test]
     fn test_checksum_folder() -> Result<(), Error> {
         struct DummyChecksum;
