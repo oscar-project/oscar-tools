@@ -126,6 +126,7 @@ pub trait Checksum {
 #[cfg(test)]
 mod tests {
     use sha2::Digest;
+    use std::ffi::OsStr;
     use std::fs::File;
     use std::io::Write;
     use std::path::PathBuf;
@@ -163,6 +164,7 @@ mod tests {
     fn test_write_checksum() {
         struct DummyChecksum;
         impl Checksum for DummyChecksum {}
+
         let hashes = vec![
             (PathBuf::from("fr.txt"), "hash_for_fr.txt".to_string()),
             (PathBuf::from("en.txt"), "hash_for_en.txt".to_string()),
@@ -210,7 +212,7 @@ hash_for_de.txt de.txt
         Ok(())
     }
     #[test]
-    fn test_checksum_folder() -> Result<(), Error> {
+    fn test_checksum_lang() -> Result<(), Error> {
         struct DummyChecksum;
         impl Checksum for DummyChecksum {}
 
@@ -244,6 +246,80 @@ hash_for_de.txt de.txt
             };
 
             assert_eq!(hash, &expected);
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_checksum_folder() -> Result<(), Error> {
+        struct DummyChecksum;
+        impl Checksum for DummyChecksum {}
+
+        let corpus_dir = tempfile::tempdir().unwrap();
+
+        let (langs, contents): (Vec<&str>, Vec<&str>) = [
+            ("fr", r#"{{"content":"foo_french"}}"#),
+            ("en", r#"{{"content":"foo_english"}}"#),
+            ("de", r#"{{"content":"foo_german"}}"#),
+            ("es", r#"{{"content":"foo_spanish"}}"#),
+        ]
+        .iter()
+        .cloned()
+        .unzip();
+
+        for (lang, content) in langs.iter().zip(contents.iter()) {
+            let path = corpus_dir.path();
+            let lang_dir = path.join(lang);
+            std::fs::create_dir(&lang_dir)?;
+            let lang_text_file = lang_dir.clone().join(format!("{lang}.jsonl"));
+            let mut f = File::create(&lang_text_file)?;
+            write!(&mut f, "{content}")?;
+        }
+
+        let corpus_path = corpus_dir.path();
+        DummyChecksum::checksum_folder(&corpus_path, 1)?;
+
+        for dir in std::fs::read_dir(&corpus_path)? {
+            let dir = dir?;
+            let mut hashes: Vec<(_, _)> = Vec::new();
+            let mut hashes_from_files: Vec<(_, _)> = Vec::new();
+            let mut hasher = Sha256::new();
+            for language_dir in std::fs::read_dir(dir.path())? {
+                let language_dir = language_dir?;
+
+                let current_path = language_dir.path();
+                let extension = current_path.extension().and_then(|x| x.to_str());
+                match extension {
+                    None => (),
+                    Some("jsonl") => {
+                        let hash = DummyChecksum::get_hash_path(&current_path, &mut hasher)?;
+                        let filename = current_path.clone();
+                        let filename = if let Some(f) = filename.file_name() {
+                            Some(f.to_owned())
+                        } else {
+                            None
+                        };
+
+                        let filename = filename.unwrap().into_string();
+                        hashes.push((filename.unwrap(), hash));
+                    }
+                    Some("sha256") => {
+                        let checksums = std::fs::read_to_string(current_path)?;
+                        let parts: Vec<String> = checksums
+                            .split(" ")
+                            .take(2)
+                            .map(|x| x.to_string())
+                            .collect();
+                        let hash = parts[0].clone();
+                        let filename = parts[1].clone().replace("\n", "");
+                        hashes_from_files.push((filename, hash));
+                    }
+                    _ => (),
+                }
+            }
+
+            assert_eq!(hashes, hashes_from_files);
         }
 
         Ok(())
