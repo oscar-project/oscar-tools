@@ -11,34 +11,14 @@ mod lang_codes;
 mod ops;
 mod versions;
 
-use crate::error::Error;
-use clap::AppSettings;
-use clap::ArgMatches;
 use env_logger::Env;
-
-use crate::cli::Command;
-use crate::impls::OscarDoc;
-
-#[cfg(not(tarpaulin_include))]
-fn build_app() -> clap::App<'static> {
-    clap::App::new("oscar-tools")
-        .setting(AppSettings::ArgRequiredElseHelp)
-        .subcommand(OscarDoc::subcommand())
-}
-
-#[cfg(not(tarpaulin_include))]
-fn run(matches: ArgMatches) -> Result<(), Error> {
-    let (version, subcommand) = matches
-        .subcommand()
-        .ok_or_else(|| Error::Custom("No version provided!".to_string()))?;
-    match version {
-        "v2.0.0" => OscarDoc::run(subcommand),
-        x => Err(Error::Custom(format!("Unknown version {x}"))),
-    }
-}
 
 #[cfg(not(tarpaulin_include))]
 fn main() -> Result<(), error::Error> {
+    use cli::build_app;
+
+    use crate::cli::run;
+
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
     let app = build_app();
