@@ -65,10 +65,12 @@ pub trait Compress {
         del_src: bool,
         num_threads: usize,
     ) -> Result<(), Error> {
-        rayon::ThreadPoolBuilder::new()
-            .num_threads(num_threads)
-            .build_global()?;
-        debug!("Built rayon threadpool with num_threads={num_threads}");
+        if num_threads != 1 {
+            rayon::ThreadPoolBuilder::new()
+                .num_threads(num_threads)
+                .build_global()?;
+            debug!("Built rayon threadpool with num_threads={num_threads}");
+        }
         // There should be an easier way to do that.
         let files_to_compress: Result<Vec<_>, std::io::Error> = std::fs::read_dir(src)?.collect();
         let files_to_compress: Vec<PathBuf> =

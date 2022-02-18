@@ -13,7 +13,7 @@ use serde_json::Value;
 use crate::{
     cli::Command,
     error::Error,
-    ops::{Compress, ExtractText, Split},
+    ops::{Checksum, Compress, ExtractText, Split},
     versions::{Schema, Version},
 };
 
@@ -31,7 +31,8 @@ impl Command for OscarDoc {
         // add commands here
         let subcommand = clap::App::new(Self::version().to_string())
             .subcommand(SplitDoc::subcommand())
-            .subcommand(CompressDoc::subcommand());
+            .subcommand(CompressDoc::subcommand())
+            .subcommand(ChecksumDoc::subcommand());
 
         subcommand
     }
@@ -42,6 +43,7 @@ impl Command for OscarDoc {
         match subcommand {
             "split" => SplitDoc::run(matches),
             "compress" => CompressDoc::run(matches),
+            "checksum" => ChecksumDoc::run(matches),
             x => Err(Error::Custom(format!(
                 "{x} op is not supported on this corpus version"
             ))),
@@ -55,6 +57,36 @@ impl Schema for OscarDoc {
     }
 }
 
+struct ChecksumDoc;
+impl Checksum for ChecksumDoc {}
+impl Command for ChecksumDoc {
+    fn subcommand() -> clap::App<'static>
+    where
+        Self: Sized,
+    {
+        clap::App::new("checksum")
+            .arg(arg!([SOURCE] "Corpus source file/folder. If folder, splits corpus files in provided folder"))
+            .arg(arg!(-J --num_threads <NUM_THREADS> "Number of threads to use (iif source is a folder). If 0, take all available").default_value("0").required(false))
+    }
+
+    fn run(matches: &ArgMatches) -> Result<(), Error>
+    where
+        Self: Sized,
+    {
+        let src: PathBuf = matches
+            .value_of("SOURCE")
+            .expect("Value of 'SOURCE' is required.")
+            .into();
+        let num_threads: usize = matches
+            .value_of("num_threads")
+            .unwrap()
+            .parse()
+            .expect("'num_threads' has to be a number.");
+
+        ChecksumDoc::checksum_folder(&src, num_threads)?;
+        todo!()
+    }
+}
 /// internal struct for split implementation
 struct SplitDoc;
 /// Use default implementation of splitting (see [crate::ops::Split])
