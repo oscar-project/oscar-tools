@@ -33,9 +33,12 @@ pub trait Checksum {
 
     /// this should operate on the wide-level.
     fn checksum_folder(src: &Path, num_threads: usize) -> Result<(), Error> {
-        rayon::ThreadPoolBuilder::new()
-            .num_threads(num_threads)
-            .build_global()?;
+        if num_threads != 1 {
+            rayon::ThreadPoolBuilder::new()
+                .num_threads(num_threads)
+                .build_global()?;
+        }
+
         if src.is_file() {
             // TODO #86442 merged
             // return Err(io::Error::new(
@@ -46,26 +49,24 @@ pub trait Checksum {
             return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("{:?}", src)).into());
         }
 
-        let language_dirs = std::fs::read_dir(src)?
-            .filter_map(|entry| {
-                // check entry validity
-                let entry = match entry {
-                    Ok(e) => e.path(),
-                    Err(e) => {
-                        error!("error with directory entry {:?}", e);
-                        return None;
-                    }
-                };
-
-                // filter out files
-                if !entry.is_dir() {
-                    warn!("{:?} is not a directory: ignoring checksum op", entry);
-                    None
-                } else {
-                    Some(entry)
+        let language_dirs = std::fs::read_dir(src)?.filter_map(|entry| {
+            // check entry validity
+            let entry = match entry {
+                Ok(e) => e.path(),
+                Err(e) => {
+                    error!("error with directory entry {:?}", e);
+                    return None;
                 }
-            })
-            .into_iter();
+            };
+
+            // filter out files
+            if !entry.is_dir() {
+                warn!("{:?} is not a directory: ignoring checksum op", entry);
+                None
+            } else {
+                Some(entry)
+            }
+        });
 
         let language_dirs_par = language_dirs.par_bridge();
         language_dirs_par.for_each(|language_dir| match Self::get_write_hashes(&language_dir) {
@@ -81,7 +82,7 @@ pub trait Checksum {
     fn get_write_hashes(src: &Path) -> Result<(), Error> {
         debug!("getting hashes");
         let hashes = Self::checksum_lang(src)?;
-        let checksum_filepath = src.clone().join("checksum.sha256");
+        let checksum_filepath = src.to_path_buf().join("checksum.sha256");
         debug!("writing checksum file");
         let mut checksum_file = File::create(&checksum_filepath)?;
         Self::write_checksum(&mut checksum_file, hashes)?;
