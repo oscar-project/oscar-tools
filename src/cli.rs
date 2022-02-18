@@ -1,6 +1,7 @@
 //! Commands enum
 
 use crate::error::Error;
+use crate::impls::OscarDoc;
 use clap::ArgMatches;
 
 pub trait Command {
@@ -17,6 +18,26 @@ pub trait Command {
     fn run(matches: &ArgMatches) -> Result<(), Error>
     where
         Self: Sized;
+}
+
+#[cfg(not(tarpaulin_include))]
+pub(crate) fn build_app() -> clap::App<'static> {
+    use clap::AppSettings;
+
+    clap::App::new("oscar-tools")
+        .setting(AppSettings::ArgRequiredElseHelp)
+        .subcommand(OscarDoc::subcommand())
+}
+
+#[cfg(not(tarpaulin_include))]
+pub(crate) fn run(matches: ArgMatches) -> Result<(), Error> {
+    let (version, subcommand) = matches
+        .subcommand()
+        .ok_or_else(|| Error::Custom("No version provided!".to_string()))?;
+    match version {
+        "v2.0.0" => OscarDoc::run(subcommand),
+        x => Err(Error::Custom(format!("Unknown version {x}"))),
+    }
 }
 
 /// Runnable traits have to be implemented by commands
