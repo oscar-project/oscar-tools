@@ -177,7 +177,7 @@ impl Command for CompressDoc {
         if src.is_file() {
             CompressDoc::compress_file(&src, &dst, del_src)?;
         } else if src.is_dir() {
-            CompressDoc::compress_folder(&src, &dst, del_src, num_threads)?;
+            CompressDoc::compress_corpus(&src, &dst, del_src, num_threads)?;
         } else {
             return Err(
                 std::io::Error::new(std::io::ErrorKind::NotFound, format!("{:?}", src)).into(),
@@ -409,7 +409,7 @@ quux
 
         // create destination path and compress
         let tmpdst = tempfile::tempdir().unwrap();
-        CompressDoc::compress_folder(tmpdir.path(), tmpdst.path(), false, 1).unwrap();
+        CompressDoc::compress_folder(tmpdir.path(), tmpdst.path(), false).unwrap();
 
         println!(
             "{:?}",
