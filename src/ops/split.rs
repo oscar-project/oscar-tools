@@ -180,6 +180,16 @@ pub trait Split {
 
         let files = std::fs::read_dir(src)?;
 
+        if !dst.exists() {
+            debug!("{:?} does not exist, creating.", dst);
+            std::fs::create_dir(dst)?;
+        }
+
+        if dst.read_dir()?.count() != 0 {
+            error!("Destination directory is not empty!");
+            return Err(std::io::Error::new(ErrorKind::AlreadyExists, format!("{:?}", dst)).into());
+        }
+
         // filter out folders and errors (printing then discarding them)
         let files = files
             .filter_map(|p| match p {
