@@ -65,6 +65,7 @@ impl Command for ChecksumDoc {
         Self: Sized,
     {
         clap::App::new("checksum")
+        .about("Generate a checksum file for each subfolder of the provided path.")
             .arg(arg!([SOURCE] "Corpus source file/folder. If folder, splits corpus files in provided folder"))
             .arg(arg!(-J --num_threads <NUM_THREADS> "Number of threads to use (iif source is a folder). If 0, take all available").default_value("0").required(false))
     }
@@ -97,6 +98,8 @@ impl Command for SplitDoc {
         Self: Sized,
     {
         clap::App::new("split")
+        .about("Splits files in provided directory into smaller files, creating a folder per original file.")
+        .long_about("TODO")
             .arg(arg!([SOURCE] "Corpus source file/folder. If folder, splits corpus files in provided folder"))
             .arg(arg!([DESTINATION] "File/folder to write to."))
             .arg(arg!(-s --size <SIZE_MB> "Split size (in Bytes)").default_value("1000000000").required(false))
@@ -150,6 +153,7 @@ impl Command for CompressDoc {
         Self: Sized,
     {
         clap::App::new("compress")
+        .about("Compress provided file and/or files in provided folder, up to a depth of 2.")
             .arg(arg!([SOURCE] "Corpus source file/folder. If folder, splits corpus files in provided folder"))
             .arg(arg!([DESTINATION] "File/folder to write to."))
             .arg(arg!(--del_src "If set, deletes source files as they are being compressed.").required(false))

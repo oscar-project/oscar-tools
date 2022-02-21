@@ -25,7 +25,7 @@ pub(crate) fn build_app() -> clap::App<'static> {
     use clap::AppSettings;
 
     clap::App::new("oscar-tools")
-        .setting(AppSettings::ArgRequiredElseHelp)
+        .global_setting(AppSettings::ArgRequiredElseHelp)
         .subcommand(OscarDoc::subcommand())
 }
 
@@ -35,7 +35,10 @@ pub(crate) fn run(matches: ArgMatches) -> Result<(), Error> {
         .subcommand()
         .ok_or_else(|| Error::Custom("No version provided!".to_string()))?;
     match version {
-        "v2.0.0" => OscarDoc::run(subcommand),
+        //TODO: this should be automatically done by calling a version resolver
+        //      Some struct/enum that holds OSCAR versions, and implements a from string that
+        //      buils something that implements run and runs the correct OSCAR version
+        "v2" => OscarDoc::run(subcommand),
         x => Err(Error::Custom(format!("Unknown version {x}"))),
     }
 }
