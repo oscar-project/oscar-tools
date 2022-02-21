@@ -80,10 +80,10 @@ pub trait Checksum {
     /// convinience function for checksum_folder
     /// TODO: move out of trait
     fn get_write_hashes(src: &Path) -> Result<(), Error> {
-        debug!("getting hashes");
+        debug!("Getting hashes for {:?}", src);
         let hashes = Self::checksum_lang(src)?;
         let checksum_filepath = src.to_path_buf().join("checksum.sha256");
-        debug!("writing checksum file");
+        debug!("writing checksums in {:?}", checksum_filepath);
         let mut checksum_file = File::create(&checksum_filepath)?;
         Self::write_checksum(&mut checksum_file, hashes)?;
         Ok(())
@@ -117,6 +117,7 @@ pub trait Checksum {
         let mut hashes = Vec::new();
         for filepath in std::fs::read_dir(src)? {
             let filepath = filepath?.path();
+            debug!("hashing {:?}", filepath);
             let hash = Self::get_hash_path(&filepath, &mut hasher)?;
             hashes.push((filepath, hash));
         }
