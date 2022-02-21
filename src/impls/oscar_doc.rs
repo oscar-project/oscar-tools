@@ -102,7 +102,7 @@ impl Command for SplitDoc {
         .long_about("TODO")
             .arg(arg!([SOURCE] "Corpus source file/folder. If folder, splits corpus files in provided folder"))
             .arg(arg!([DESTINATION] "File/folder to write to."))
-            .arg(arg!(-s --size <SIZE_MB> "Split size (in Bytes)").default_value("1000000000").required(false))
+            .arg(arg!(-s --size <SIZE_MB> "Split size (in MBytes)").default_value("500").required(false))
             .arg(arg!(-J --num_threads <NUM_THREADS> "Number of threads to use (iif source is a folder). If 0, take all available").default_value("0").required(false))
     }
 
@@ -119,11 +119,14 @@ impl Command for SplitDoc {
             .value_of("DESTINATION")
             .expect("Value of 'DESTINATION' is required.")
             .into();
+
+        // parse size and convert from MBytes into Bytes
         let size: usize = matches
             .value_of("size")
             .unwrap()
-            .parse()
-            .expect("'size' has to be a number.");
+            .parse::<usize>()
+            .expect("'size' has to be a number.")
+            * 1_000_000usize;
         let num_threads: usize = matches
             .value_of("num_threads")
             .unwrap()
