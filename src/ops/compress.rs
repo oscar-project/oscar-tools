@@ -29,6 +29,10 @@ pub trait Compress {
         if let Some(ext) = dst.extension() {
             //TODO remove unwrapping here
             let extension = String::from(ext.to_str().unwrap());
+            if extension == ".gz" {
+                warn!("{:?} is already compressed! Skipping.", dst);
+                return Ok(());
+            }
             dst.set_extension(extension + ".gz");
         } else {
             warn!("File {0:?} has no extension! Fallback to {0:?}.txt.gz", dst);
