@@ -71,7 +71,7 @@ impl SplitWriter {
             next_filename.set_file_name(file_stem);
             next_filename.set_extension(extension);
 
-            println!("{:?}", next_filename);
+            debug!("next filename: {:?}", next_filename);
 
             // increase file count
             self.nb_files += 1;
@@ -224,9 +224,9 @@ pub trait Split {
                     let file_name = file.file_name().unwrap();
                     dest_file.push(file_name);
 
-                    debug!("Splitting {:?} in {:?}", file, dest_folder);
+                    info!("Splitting {:?} in {:?}", file, dest_folder);
                     Self::split_file(&file, &dest_file, split_size)?;
-                    debug!("Done      {:?} in {:?}", file, dest_folder);
+                    info!("Done      {:?} in {:?}", file, dest_folder);
                 };
                 Ok(())
             })
