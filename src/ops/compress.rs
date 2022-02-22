@@ -49,6 +49,7 @@ pub trait Compress {
         compress(&mut dest_file, src_file)?;
 
         if del_src {
+            info!("removing {:?}", src);
             std::fs::remove_file(src)?;
         }
 

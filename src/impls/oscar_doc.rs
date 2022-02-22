@@ -159,7 +159,7 @@ impl Command for CompressDoc {
         .about("Compress provided file and/or files in provided folder, up to a depth of 2.")
             .arg(arg!([SOURCE] "Corpus source file/folder. If folder, splits corpus files in provided folder"))
             .arg(arg!([DESTINATION] "File/folder to write to."))
-            .arg(arg!(--del-src "If set, deletes source files as they are being compressed.").required(false))
+            .arg(arg!(--del_src "If set, deletes source files as they are being compressed.").required(false))
             .arg(arg!(-J --num_threads <NUM_THREADS> "Number of threads to use (iif source is a folder). If 0, take all available").default_value("0").required(false))
     }
 
@@ -175,7 +175,7 @@ impl Command for CompressDoc {
             .value_of("DESTINATION")
             .expect("Value of 'DESTINATION' is required.")
             .into();
-        let del_src = matches.is_present("del-src");
+        let del_src = matches.is_present("del_src");
         let num_threads: usize = matches
             .value_of("num_threads")
             .unwrap()
