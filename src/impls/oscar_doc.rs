@@ -32,7 +32,9 @@ impl Command for OscarDoc {
         let subcommand = clap::App::new(Self::version().to_string())
             .subcommand(SplitDoc::subcommand())
             .subcommand(CompressDoc::subcommand())
-            .subcommand(ChecksumDoc::subcommand());
+            .subcommand(ChecksumDoc::subcommand())
+            .subcommand(ExtractFromDoc::subcommand());
+
 
         subcommand
     }
@@ -44,6 +46,7 @@ impl Command for OscarDoc {
             "split" => SplitDoc::run(matches),
             "compress" => CompressDoc::run(matches),
             "checksum" => ChecksumDoc::run(matches),
+            "extractext" => ExtractFromDoc::run(matches),
             x => Err(Error::Custom(format!(
                 "{x} op is not supported on this corpus version"
             ))),
@@ -56,7 +59,40 @@ impl Schema for OscarDoc {
         Version::new(2, 0, 0)
     }
 }
+struct ExtractFromDoc;
+impl ExtractText for ExtractFromDoc {
+    
+}
+impl Command for ExtractFromDoc {
+    fn subcommand() -> clap::App<'static>
+    where
+        Self: Sized {
+        
+            clap::App::new("extractext")
+            .about("Extract text from documents.")
+            .arg(arg!([SOURCE] "Corpus source file/."))
+            .arg(arg!([DESTINATION] "Corpus destination file/."))   
+            .arg(arg!(--del_src "If set, deletes source files as they are being extracted.").required(false))
+     
+    }
 
+    fn run(matches: &ArgMatches) -> Result<(), Error>
+    where
+    Self: Sized,
+    {
+        let src: PathBuf = matches
+            .value_of("SOURCE")
+            .expect("Value of 'SOURCE' is required.")
+            .into();
+        let dst: PathBuf = matches
+            .value_of("DESTINATION")
+            .expect("Value of 'DESTINATION' is required.")
+            .into();
+        let del_src = matches.is_present("del_src");
+        Self::extract_from_path(&src, &dst, del_src)
+    }
+        
+}
 struct ChecksumDoc;
 impl Checksum for ChecksumDoc {}
 impl Command for ChecksumDoc {
@@ -239,7 +275,7 @@ impl OscarDoc {
 }
 
 // TODO move into a proper op
-impl ExtractText for OscarDoc {
+/*impl ExtractText for OscarDoc {
     fn extract_text(
         src: &std::path::Path,
         dst: &std::path::Path,
@@ -275,7 +311,7 @@ impl ExtractText for OscarDoc {
         Ok(())
     }
 }
-
+ */
 #[cfg(test)]
 mod tests {
 
