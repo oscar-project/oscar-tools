@@ -46,7 +46,7 @@ impl Command for OscarDoc {
             "split" => SplitDoc::run(matches),
             "compress" => CompressDoc::run(matches),
             "checksum" => ChecksumDoc::run(matches),
-            "extractext" => ExtractFromDoc::run(matches),
+            "extract-text" => ExtractFromDoc::run(matches),
             x => Err(Error::Custom(format!(
                 "{x} op is not supported on this corpus version"
             ))),
@@ -68,7 +68,7 @@ impl Command for ExtractFromDoc {
     where
         Self: Sized {
         
-            clap::App::new("extractext")
+            clap::App::new("extract-text")
             .about("Extract text from documents.")
             .arg(arg!([SOURCE] "Corpus source file/."))
             .arg(arg!([DESTINATION] "Corpus destination file/."))   

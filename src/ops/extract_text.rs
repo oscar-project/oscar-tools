@@ -22,20 +22,20 @@ pub trait ExtractText {
         }
         let mut dst_file = File::create(dst)?;
         let mut dst_buf =BufWriter::new(dst_file);
-        Self::extact_text(bufread, & mut dst_buf)?;
+        Self::extract_text(bufread, & mut dst_buf)?;
         if del_src {
             std::fs::remove_file(src)?;
         }
         Ok(())
     }
-    fn extact_text<T, U>(src: T, dst: &mut U) -> Result<(), Error>
+    fn extract_text<T, U>(src: T, dst: &mut U) -> Result<(), Error>
     where
         T: std::io::BufRead,
         U: std::io::Write,
     {
         for line in src.lines() {
             let mut line = line?;
-            let mut extracted = Self::extact_json(line)?;
+            let mut extracted = Self::extract_json(line)?;
             extracted.push_str("\n\n");
             let string_size = extracted.len();
             let written_byte = dst.write(extracted.as_bytes())?;
@@ -46,7 +46,7 @@ pub trait ExtractText {
         dst.flush()?;
         Ok(())
     }
-    fn extact_json(doc: String) -> Result<String, Error> {
+    fn extract_json(doc: String) -> Result<String, Error> {
         let document: serde_json::Value = serde_json::from_str(&doc)?;
         match &document["content"] {
             serde_json::Value::String(content) => Ok(content.to_string()),
@@ -67,13 +67,13 @@ mod tests {
     #[test]
     fn test_extract_json() {
         let test = r#"{"content":"foo"}"#;
-        let res = TestExtract::extact_json(test.to_string());
+        let res = TestExtract::extract_json(test.to_string());
         assert_eq!("foo", res.unwrap());
     }
     #[test]
     fn test_not_string() {
         let test = r#"{"content":22}"#;
-        let res = TestExtract::extact_json(test.to_string());
+        let res = TestExtract::extract_json(test.to_string());
         assert!(res.is_err());
         match res.unwrap_err() {
             Error::MalformedContent(_) => assert!(true),
@@ -81,16 +81,27 @@ mod tests {
         }
     }
     #[test]
-    fn test_extact_text() {
-        let test = r#"{"content":"ghjj"}
-        {"content":"kgjjgo \n gkel"}
-        {"content":"hfirh"}
-        {"content":"fghh\n gkjrgrjfj"}
+    fn test_extract_text() {
+        let test = r#"{"content":"words like words"}
+        {"content":"when to use\n it"}
+        {"content":"not so good"}
+        {"content":"to start\n with"}
         "#;
         //let mut bufread = BufReader::new(test);
-        let mut results = vec![];
-        TestExtract::extact_text(test.as_bytes(), &mut results);
-        let results = String::from_utf8_lossy(&results);
-        println!("{}", results);
+        let mut res = vec![];
+        TestExtract::extract_text(test.as_bytes(), &mut res);
+        let res = String::from_utf8_lossy(&res);
+        let expected = "words like words
+
+when to use
+ it
+
+not so good
+
+to start
+ with
+
+";
+     assert_eq!(res, expected);
     }
 }
