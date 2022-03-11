@@ -21,8 +21,8 @@ pub trait ExtractText {
             .into());
         }
         let mut dst_file = File::create(dst)?;
-        let mut dst_buf =BufWriter::new(dst_file);
-        Self::extract_text(bufread, & mut dst_buf)?;
+        let mut dst_buf = BufWriter::new(dst_file);
+        Self::extract_text(bufread, &mut dst_buf)?;
         if del_src {
             std::fs::remove_file(src)?;
         }
@@ -102,6 +102,6 @@ to start
  with
 
 ";
-     assert_eq!(res, expected);
+        assert_eq!(res, expected);
     }
 }

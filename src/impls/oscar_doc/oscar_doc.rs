@@ -35,7 +35,6 @@ impl Command for OscarDoc {
             .subcommand(ChecksumDoc::subcommand())
             .subcommand(ExtractFromDoc::subcommand());
 
-
         subcommand
     }
 
@@ -60,25 +59,25 @@ impl Schema for OscarDoc {
     }
 }
 struct ExtractFromDoc;
-impl ExtractText for ExtractFromDoc {
-    
-}
+impl ExtractText for ExtractFromDoc {}
 impl Command for ExtractFromDoc {
     fn subcommand() -> clap::App<'static>
     where
-        Self: Sized {
-        
-            clap::App::new("extract-text")
+        Self: Sized,
+    {
+        clap::App::new("extract-text")
             .about("Extract text from documents.")
             .arg(arg!([SOURCE] "Corpus source file/."))
-            .arg(arg!([DESTINATION] "Corpus destination file/."))   
-            .arg(arg!(--del_src "If set, deletes source files as they are being extracted.").required(false))
-     
+            .arg(arg!([DESTINATION] "Corpus destination file/."))
+            .arg(
+                arg!(--del_src "If set, deletes source files as they are being extracted.")
+                    .required(false),
+            )
     }
 
     fn run(matches: &ArgMatches) -> Result<(), Error>
     where
-    Self: Sized,
+        Self: Sized,
     {
         let src: PathBuf = matches
             .value_of("SOURCE")
@@ -91,7 +90,6 @@ impl Command for ExtractFromDoc {
         let del_src = matches.is_present("del_src");
         Self::extract_from_path(&src, &dst, del_src)
     }
-        
 }
 struct ChecksumDoc;
 impl Checksum for ChecksumDoc {}
