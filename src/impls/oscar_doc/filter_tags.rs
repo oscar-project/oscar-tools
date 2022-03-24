@@ -2,55 +2,54 @@
  * The goal is to filter the documents based on the annotation ["short s", "header"]
  * take a document
  */
-use std::{borrow::Cow, collections::HashSet, fmt::Display};
+use std::{
+    borrow::Cow,
+    collections::HashSet,
+    fs::File,
+    io::{BufReader, BufWriter},
+};
 
 use crate::error::Error;
-use sha2::digest::Reset;
 
 use crate::ops::FilterTags;
 
-struct FilterTagDoc;
+pub struct FilterTagDoc;
 impl FilterTags for FilterTagDoc {
     fn filter_tags(
         src: &std::path::Path,
         dst: &std::path::Path,
+        include: &HashSet<Cow<str>>,
+        exclude: &HashSet<Cow<str>>,
     ) -> Result<(), crate::error::Error> {
-        todo!()
+        let file = File::open(src)?;
+        let bufread = BufReader::new(file);
+        if dst.exists() {
+            error!("File exist!");
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::AlreadyExists,
+                format!("File exist {:?}", dst),
+            )
+            .into());
+        }
+        let dst_file = File::create(dst)?;
+        let mut dst_buf = BufWriter::new(dst_file);
+
+        Self::filter_write(bufread, &mut dst_buf, include, exclude)?;
+        Ok(())
     }
 }
-enum Tag {
-    Header,
-    Footer,
-    ShortSentences,
-    Tiny,
-    Adult,
-    Noisy,
-}
-impl Display for Tag {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let tags_string = match self {
-            Tag::Header => "header",
-            Tag::Footer => "footer",
-            Tag::ShortSentences => "short_sentences",
-            Tag::Tiny => "tiny",
-            Tag::Adult => "adult",
-            Tag::Noisy => "noisy",
-        };
-        write!(f, "{}", tags_string)
-    }
-}
+
 impl FilterTagDoc {
-    fn filter_single_documnet(
+    fn filter_single_document(
         doc: &str,
-        include: HashSet<Cow<str>>,
-        exclude: HashSet<Cow<str>>,
+        include: &HashSet<Cow<str>>,
+        exclude: &HashSet<Cow<str>>,
     ) -> Result<bool, Error> {
         let document: serde_json::Value = serde_json::from_str(&doc)?;
         match &document["annotation"] {
             serde_json::Value::Array(arr) => {
                 let doc_tags = Self::convert_to_hashset(arr);
-                Self::filter_tags(doc_tags, include, exclude);
-                Ok(true)
+                Ok(Self::apply_filter_rules(&doc_tags, include, exclude))
             }
             other => Err(Error::MalformedContent(other.clone())),
         }
@@ -76,10 +75,10 @@ impl FilterTagDoc {
     ///     -if doc_tages is not empty and include is empty -> true
     ///     -if include is a subset of doc_tages -> true
     ///
-    fn filter_tags(
-        doc_tags: HashSet<Cow<str>>,
-        include: HashSet<Cow<str>>,
-        exclude: HashSet<Cow<str>>,
+    fn apply_filter_rules(
+        doc_tags: &HashSet<Cow<str>>,
+        include: &HashSet<Cow<str>>,
+        exclude: &HashSet<Cow<str>>,
     ) -> bool {
         //check the intersection between doc_tags and exclude and if not empty return false
         //excluding rul
@@ -110,10 +109,75 @@ impl FilterTagDoc {
             }
         }
     }
+    /// Will read documents from a Reader and output document that match predicates into a Writer.
+    fn filter_write<T, U>(
+        src: T,
+        dst: &mut U,
+        include: &HashSet<Cow<str>>,
+        exclude: &HashSet<Cow<str>>,
+    ) -> Result<(), Error>
+    where
+        T: std::io::BufRead,
+        U: std::io::Write,
+    {
+        //check if there is an overlap between include and exclude
+        if (include.intersection(&exclude).count() != 0)
+            && !include.is_empty()
+            && !exclude.is_empty()
+        {
+            error!("You can not include and exclude at the same time");
+            return Err(Error::Custom(
+                "You can not include and exclude at the same time".to_string(),
+            ));
+        }
+
+        let documents = src.lines();
+
+        // apply filter_single_document to documents
+        // for documents that have not been filtered out, write them in the dst.
+
+        let results = documents.filter_map(|doc| -> Option<String> {
+            match doc {
+                // if we could properly read the document from the writer,
+                // match on the filtering process
+                Ok(doc) => match Self::filter_single_document(&doc, &include, &exclude) {
+                    // if the doc is well formed AND matches the constraints
+                    Ok(true) => Some(doc),
+                    // if the doc is well formed AND doesn't match the constraints
+                    Ok(false) => None,
+
+                    // if the doc is not well formed
+                    Err(e) => {
+                        error!("{:?}", e);
+                        None
+                    }
+                },
+                // IO Error (probably)
+                Err(_) => {
+                    error!("Error reading document");
+                    None
+                }
+            }
+        });
+
+        for mut doc in results {
+            doc.push('\n');
+            let bytes_to_write = doc.len();
+            if bytes_to_write != dst.write(doc.as_bytes())? {
+                error!("Document has not been completely written!");
+                //TODO: return error?
+            }
+        }
+        dst.flush()?;
+
+        Ok(())
+    }
 }
 #[cfg(test)]
 mod test {
     use std::{borrow::Cow, collections::HashSet};
+
+    use serde_json::Value;
 
     use super::FilterTagDoc;
 
@@ -134,7 +198,7 @@ mod test {
         let include = HashSet::new();
         let exclude = HashSet::new();
 
-        let res = FilterTagDoc::filter_tags(doc_tags, include, exclude);
+        let res = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(res, true);
     }
 
@@ -144,7 +208,7 @@ mod test {
         let include = HashSet::new();
         let mut exclude = HashSet::new();
         exclude.insert(Cow::from("A"));
-        let res = FilterTagDoc::filter_tags(doc_tags, include, exclude);
+        let res = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(res, true);
     }
 
@@ -155,7 +219,7 @@ mod test {
         let exclude = HashSet::new();
         include.insert(Cow::from("A"));
 
-        let res = FilterTagDoc::filter_tags(doc_tags, include, exclude);
+        let res = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(res, false);
     }
 
@@ -166,12 +230,12 @@ mod test {
         let exclude = HashSet::new();
         doc_tags.insert(Cow::from("A"));
 
-        let res = FilterTagDoc::filter_tags(doc_tags, include, exclude);
+        let res = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(res, false);
     }
 
     #[test]
-    fn filter_tags_include() {
+    fn apply_filter_rules_include() {
         let mut doc_tags = HashSet::new();
         let mut include = HashSet::new();
         let exclude = HashSet::new();
@@ -179,23 +243,23 @@ mod test {
         doc_tags.insert(Cow::from("A"));
         doc_tags.insert(Cow::from("B"));
 
-        let res = FilterTagDoc::filter_tags(doc_tags, include, exclude);
+        let res = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(res, true);
     }
     #[test]
-    fn filter_tags_exclude() {
+    fn apply_filter_rules_exclude() {
         let mut doc_tags = HashSet::new();
         let include = HashSet::new();
         let mut exclude = HashSet::new();
         doc_tags.insert(Cow::from("A"));
         exclude.insert(Cow::from("A"));
 
-        let res = FilterTagDoc::filter_tags(doc_tags, include, exclude);
+        let res = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(res, false)
     }
 
     #[test]
-    fn filter_tags_excluded() {
+    fn apply_filter_rules_excluded() {
         let mut doc_tags = HashSet::new();
         let mut include = HashSet::new();
         let mut exclude = HashSet::new();
@@ -204,11 +268,11 @@ mod test {
         include.insert(Cow::from("short_sentences"));
         exclude.insert(Cow::from("tiny"));
 
-        let filters = FilterTagDoc::filter_tags(doc_tags, include, exclude);
+        let filters = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(filters, false);
     }
     #[test]
-    fn filter_tags_included() {
+    fn apply_filter_rules_included() {
         let mut doc_tags = HashSet::new();
         let mut include = HashSet::new();
         let mut exclude = HashSet::new();
@@ -217,11 +281,11 @@ mod test {
         include.insert(Cow::from("short_sentences"));
         exclude.insert(Cow::from("tiny"));
 
-        let filters = FilterTagDoc::filter_tags(doc_tags, include, exclude);
+        let filters = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(filters, true);
     }
     #[test]
-    fn filter_tags_excluded_() {
+    fn apply_filter_rules_excluded_() {
         let mut doc_tags = HashSet::new();
         let mut include = HashSet::new();
         let mut exclude = HashSet::new();
@@ -230,38 +294,38 @@ mod test {
         include.insert(Cow::from("short_sentences"));
         exclude.insert(Cow::from("tiny"));
 
-        let filters = FilterTagDoc::filter_tags(doc_tags, include, exclude);
+        let filters = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(filters, false);
     }
 
     #[test]
-    fn filter_tags_no_tag() {
-        let mut doc_tags = HashSet::new();
+    fn apply_filter_rules_no_tag() {
+        let doc_tags = HashSet::new();
         let mut include = HashSet::new();
-        let mut exclude = HashSet::new();
+        let exclude = HashSet::new();
 
         include.insert(Cow::from("short_sentences"));
         // exclude.insert(Cow::from("tiny"));
 
-        let filters = FilterTagDoc::filter_tags(doc_tags, include, exclude);
+        let filters = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(filters, false);
     }
 
     #[test]
-    fn filter_tags_no_include() {
+    fn apply_filter_rules_no_include() {
         let mut doc_tags = HashSet::new();
-        let mut include = HashSet::new();
+        let include = HashSet::new();
         let mut exclude = HashSet::new();
 
         doc_tags.insert(Cow::from("nosiy"));
         exclude.insert(Cow::from("tiny"));
 
-        let filters = FilterTagDoc::filter_tags(doc_tags, include, exclude);
+        let filters = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(filters, false);
     }
 
     #[test]
-    fn filter_tags_same_exclude_include() {
+    fn apply_filter_rules_same_exclude_include() {
         // let's imagine that a tag is simultaneously included and excluded.
         // since we process exclude first, it should discard the document.
         let mut doc_tags = HashSet::new();
@@ -272,12 +336,12 @@ mod test {
         exclude.insert(Cow::from("tiny"));
         include.insert(Cow::from("tiny"));
 
-        let filters = FilterTagDoc::filter_tags(doc_tags, include, exclude);
+        let filters = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(filters, false);
     }
 
     #[test]
-    fn filter_tags_complex() {
+    fn apply_filter_rules_complex() {
         // complex passing example with numerous doc, incl and excl tags
         let mut doc_tags = HashSet::new();
         let mut include = HashSet::new();
@@ -293,12 +357,12 @@ mod test {
         include.insert(Cow::from("tiny"));
         include.insert(Cow::from("adult"));
 
-        let filters = FilterTagDoc::filter_tags(doc_tags, include, exclude);
+        let filters = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(filters, true);
     }
 
     #[test]
-    fn filter_tags_complex_filtered() {
+    fn apply_filter_rules_complex_filtered() {
         // complex passing example with numerous doc, incl and excl tags
         let mut doc_tags = HashSet::new();
         let mut include = HashSet::new();
@@ -314,7 +378,73 @@ mod test {
         include.insert(Cow::from("noisy"));
         include.insert(Cow::from("adult"));
 
-        let filters = FilterTagDoc::filter_tags(doc_tags, include, exclude);
+        let filters = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(filters, false);
+    }
+    #[test]
+    fn apply_filter_rules_verycomplex() {
+        // complex passing example with numerous doc, incl and excl tags
+        let mut doc_tags = HashSet::new();
+        let mut include = HashSet::new();
+        let mut exclude = HashSet::new();
+
+        doc_tags.insert(Cow::from("short_sentences"));
+
+        exclude.insert(Cow::from("header"));
+
+        include.insert(Cow::from("tiny"));
+
+        let filters = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
+        assert_eq!(filters, false);
+    }
+
+    #[test]
+    fn test_filter_write() {
+        let src = r#"{"content":"words like words", "annotation":["tiny"]}
+{"content":"when to use\n it", "annotation":["short_sentence"]}
+{"content":"not so good", "annotation":["tiny"]}
+{"content":"to start\n with", "annotation":[]}
+{"content":"to start\n with", "annotation":["tiny", "header"]}"#;
+        let mut dst = vec![];
+        let mut include = HashSet::new();
+        let mut exclude = HashSet::new();
+        let including_tag = "tiny";
+        let excluding_tag = "header";
+        include.insert(Cow::from(including_tag));
+        exclude.insert(Cow::from(excluding_tag));
+
+        FilterTagDoc::filter_write(src.as_bytes(), &mut dst, &include, &exclude).unwrap();
+        let dst = String::from_utf8_lossy(&dst);
+        for doc in dst.lines() {
+            let doc: serde_json::Value = serde_json::from_str(doc).unwrap();
+            let annotation = &doc["annotation"];
+            if let Value::Array(a) = annotation {
+                assert!(!a
+                    .iter()
+                    .any(|annotation: &Value| annotation == &Value::String("header".to_string())));
+                assert!(a
+                    .iter()
+                    .any(|annotation: &Value| annotation == &Value::String("tiny".to_string())));
+            }
+        }
+    }
+
+    #[test]
+    fn test_filter_write_overlap() {
+        // the idea is to test the case where there is an overlap between include and exclude.
+        let src = r#"{"content":"words like words", "annotation":["tiny", "short_sentence"]}
+{"content":"when to use\n it", "annotation":["short_sentence", "footer"]}
+{"content":"not so good", "annotation":["tiny"]}
+{"content":"to start\n with", "annotation":[]}
+{"content":"to start\n with", "annotation":["tiny", "header"]}"#;
+        let mut dst = vec![];
+        let mut include = HashSet::new();
+        let mut exclude = HashSet::new();
+        let including_tags = ["short_sentence", "tiny"].map(|a| Cow::from(a));
+        let excluding_tags = ["header", "short_sentence"].map(|a| Cow::from(a));
+        include.extend(including_tags);
+        exclude.extend(excluding_tags);
+
+        assert!(FilterTagDoc::filter_write(src.as_bytes(), &mut dst, &include, &exclude).is_err());
     }
 }

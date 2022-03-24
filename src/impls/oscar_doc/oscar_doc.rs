@@ -1,14 +1,15 @@
 //! OSCAR Schema v2 (See [oscar-corpus.com](https://oscar-corpus.com)) operation implementations.
 //!
 //! Implementations mostly use default trait implementations, as the format is simple.
+use clap::{arg, Arg, ArgMatches};
+use serde_json::Value;
+use std::borrow::Cow;
+use std::collections::HashSet;
 use std::{
     fs::File,
     io::{BufRead, BufReader, Read, Write},
     path::PathBuf,
 };
-
-use clap::{arg, ArgMatches};
-use serde_json::Value;
 
 use crate::{
     cli::Command,
@@ -16,6 +17,8 @@ use crate::{
     ops::{Checksum, Compress, ExtractText, Split},
     versions::{Schema, Version},
 };
+
+use super::filter_tags::FilterTagDoc;
 
 /// OSCAR Schema v2.
 ///
@@ -33,7 +36,8 @@ impl Command for OscarDoc {
             .subcommand(SplitDoc::subcommand())
             .subcommand(CompressDoc::subcommand())
             .subcommand(ChecksumDoc::subcommand())
-            .subcommand(ExtractFromDoc::subcommand());
+            .subcommand(ExtractFromDoc::subcommand())
+            .subcommand(FilterTagDoc::subcommand());
 
         subcommand
     }
@@ -46,6 +50,7 @@ impl Command for OscarDoc {
             "compress" => CompressDoc::run(matches),
             "checksum" => ChecksumDoc::run(matches),
             "extract-text" => ExtractFromDoc::run(matches),
+            "extract-tags" => FilterTagDoc::run(matches),
             x => Err(Error::Custom(format!(
                 "{x} op is not supported on this corpus version"
             ))),
@@ -53,6 +58,53 @@ impl Command for OscarDoc {
     }
 }
 
+impl Command for FilterTagDoc {
+    fn run(matches: &ArgMatches) -> Result<(), Error>
+    where
+        Self: Sized,
+    {
+        let src: PathBuf = matches
+            .value_of("SOURCE")
+            .unwrap()
+            //.expect("Value of 'SOURCE' is required.")
+            .into();
+        let dst: PathBuf = matches
+            .value_of("DESTINATION")
+            .unwrap()
+            //.expect("Value of 'DESTINATION' is required.")
+            .into();
+        let include: HashSet<Cow<str>> = matches
+            .values_of("include_tags")
+            .unwrap()
+            .map(|a| Cow::from(a))
+            .collect();
+        let exclude: HashSet<Cow<str>> = matches
+            .values_of("exclude_tags")
+            .unwrap()
+            .map(|a| Cow::from(a))
+            .collect();
+
+        debug!("extracting from {:?} to {:?}", src, dst);
+        debug!("Including {:?}", include);
+        debug!("Excluding {:?}", exclude);
+        Ok(())
+    }
+
+    fn subcommand() -> clap::App<'static>
+    where
+        Self: Sized,
+    {
+        clap::App::new("extract-tags")
+            .about("TODO")
+            .arg(arg!(--include-tags "tags to include.").required(false).min_values(1))
+                .arg(arg!(--exclude-tags "tags to include.").required(false).min_values(1))
+                .arg(arg!([SOURCE] "Corpus source file/folder. If folder, splits corpus files in provided folder"))
+                .arg(arg!([DESTINATION] "Corpus source file/folder. If folder, splits corpus files in provided folder"))
+
+        //.arg(Arg::new("--include_tags").required(true).min_values(1))
+        //.arg(Arg::new("--exclude_tags").required(true).min_values(1))
+    }
+}
 impl Schema for OscarDoc {
     fn version() -> Version {
         Version::new(2, 0, 0)
@@ -67,8 +119,8 @@ impl Command for ExtractFromDoc {
     {
         clap::App::new("extract-text")
             .about("Extract text from documents.")
-            .arg(arg!([SOURCE] "Corpus source file/."))
-            .arg(arg!([DESTINATION] "Corpus destination file/."))
+            .arg(arg!([SOURCE] "Corpus source file/.").required(true))
+            .arg(arg!([DESTINATION] "Corpus destination file/.").required(true))
             .arg(
                 arg!(--del_src "If set, deletes source files as they are being extracted.")
                     .required(false),
@@ -81,11 +133,13 @@ impl Command for ExtractFromDoc {
     {
         let src: PathBuf = matches
             .value_of("SOURCE")
-            .expect("Value of 'SOURCE' is required.")
+            .unwrap()
+            //.expect("Value of 'SOURCE' is required.")
             .into();
         let dst: PathBuf = matches
             .value_of("DESTINATION")
-            .expect("Value of 'DESTINATION' is required.")
+            .unwrap()
+            //.expect("Value of 'DESTINATION' is required.")
             .into();
         let del_src = matches.is_present("del_src");
         Self::extract_from_path(&src, &dst, del_src)
