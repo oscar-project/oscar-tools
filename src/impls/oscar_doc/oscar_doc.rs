@@ -1,6 +1,13 @@
 //! OSCAR Schema v2 (See [oscar-corpus.com](https://oscar-corpus.com)) operation implementations.
 //!
 //! Implementations mostly use default trait implementations, as the format is simple.
+use crate::ops::FilterTags;
+use crate::{
+    cli::Command,
+    error::Error,
+    ops::{Checksum, Compress, ExtractText, Split},
+    versions::{Schema, Version},
+};
 use clap::{arg, Arg, ArgMatches};
 use serde_json::Value;
 use std::borrow::Cow;
@@ -9,13 +16,6 @@ use std::{
     fs::File,
     io::{BufRead, BufReader, Read, Write},
     path::PathBuf,
-};
-
-use crate::{
-    cli::Command,
-    error::Error,
-    ops::{Checksum, Compress, ExtractText, Split},
-    versions::{Schema, Version},
 };
 
 use super::filter_tags::FilterTagDoc;
@@ -63,30 +63,30 @@ impl Command for FilterTagDoc {
     where
         Self: Sized,
     {
+        debug!("Got params {:#?}", matches);
         let src: PathBuf = matches
             .value_of("SOURCE")
-            .unwrap()
-            //.expect("Value of 'SOURCE' is required.")
+            .expect("Value of 'SOURCE' is required.")
             .into();
         let dst: PathBuf = matches
             .value_of("DESTINATION")
             .unwrap()
             //.expect("Value of 'DESTINATION' is required.")
             .into();
-        let include: HashSet<Cow<str>> = matches
-            .values_of("include_tags")
-            .unwrap()
-            .map(|a| Cow::from(a))
-            .collect();
-        let exclude: HashSet<Cow<str>> = matches
-            .values_of("exclude_tags")
-            .unwrap()
-            .map(|a| Cow::from(a))
-            .collect();
+        let include: HashSet<Cow<str>> = match matches.values_of("include") {
+            Some(m) => m.map(|a| Cow::from(a)).collect(),
+            None => HashSet::new(),
+        };
+        let exclude: HashSet<Cow<str>> = match matches.values_of("exclude") {
+            Some(m) => m.map(|a| Cow::from(a)).collect(),
+            None => HashSet::new(),
+        };
 
         debug!("extracting from {:?} to {:?}", src, dst);
         debug!("Including {:?}", include);
         debug!("Excluding {:?}", exclude);
+        Self::filter_tags(&src, &dst, &include, &exclude)
+            .expect("Error while filtering documents based on tags");
         Ok(())
     }
 
@@ -96,13 +96,10 @@ impl Command for FilterTagDoc {
     {
         clap::App::new("extract-tags")
             .about("TODO")
-            .arg(arg!(--include-tags "tags to include.").required(false).min_values(1))
-                .arg(arg!(--exclude-tags "tags to include.").required(false).min_values(1))
+            .arg(arg!(--include <tags> "tags to include.").required(false).min_values(1).short('i'))
+                .arg(arg!(--exclude <tags> "tags to include.").required(false).min_values(1).short('e'))
                 .arg(arg!([SOURCE] "Corpus source file/folder. If folder, splits corpus files in provided folder"))
                 .arg(arg!([DESTINATION] "Corpus source file/folder. If folder, splits corpus files in provided folder"))
-
-        //.arg(Arg::new("--include_tags").required(true).min_values(1))
-        //.arg(Arg::new("--exclude_tags").required(true).min_values(1))
     }
 }
 impl Schema for OscarDoc {

@@ -46,14 +46,22 @@ impl FilterTagDoc {
         exclude: &HashSet<Cow<str>>,
     ) -> Result<bool, Error> {
         let document: serde_json::Value = serde_json::from_str(&doc)?;
-        match &document["annotation"] {
+
+        match &document["metadata"]["annotation"] {
             serde_json::Value::Array(arr) => {
                 let doc_tags = Self::convert_to_hashset(arr);
                 Ok(Self::apply_filter_rules(&doc_tags, include, exclude))
             }
-            other => Err(Error::MalformedContent(other.clone())),
+
+            serde_json::Value::Null => Ok(include.is_empty() && exclude.is_empty()),
+            other => {
+                error!("Record has a malformed annotation field");
+                debug!("{other:#?}");
+                Err(Error::MalformedContent(other.clone()))
+            }
         }
     }
+
     fn convert_to_hashset(arr: &[serde_json::Value]) -> HashSet<Cow<str>> {
         let mut hash_set: HashSet<Cow<str>> = HashSet::new();
         for items in arr {
@@ -189,7 +197,8 @@ mod test {
     2. No D, no I, E    => keep
     3. No D, I, no E    => discard
     4. D, no I, no E    => discard
-
+    5a. D, no I, E      => E and D intersects, so discard
+    5b. D, no I, E      => E and D are disjoint, so keep
     */
 
     #[test]
@@ -234,6 +243,28 @@ mod test {
         assert_eq!(res, false);
     }
 
+    #[test]
+    fn test_edge_case_5a() {
+        let mut doc_tags = HashSet::new();
+        let include = HashSet::new();
+        let mut exclude = HashSet::new();
+        doc_tags.insert(Cow::from("A"));
+        exclude.insert(Cow::from("B"));
+
+        let res = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
+        assert_eq!(res, true);
+    }
+    #[test]
+    fn test_edge_case_5b() {
+        let mut doc_tags = HashSet::new();
+        let include = HashSet::new();
+        let mut exclude = HashSet::new();
+        doc_tags.insert(Cow::from("B"));
+        exclude.insert(Cow::from("B"));
+
+        let res = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
+        assert_eq!(res, false);
+    }
     #[test]
     fn apply_filter_rules_include() {
         let mut doc_tags = HashSet::new();
