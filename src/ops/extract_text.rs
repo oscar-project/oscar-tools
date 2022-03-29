@@ -1,11 +1,9 @@
 /*! Extracts textual content into new files, discarding metadata.
 !*/
 
-use std::fs::{create_dir, File};
-use std::io::{BufRead, BufReader, BufWriter};
+use std::fs::File;
+use std::io::{BufReader, BufWriter};
 use std::path::Path;
-
-use rayon::string;
 
 use crate::error::Error;
 pub trait ExtractText {
@@ -20,7 +18,7 @@ pub trait ExtractText {
             )
             .into());
         }
-        let mut dst_file = File::create(dst)?;
+        let dst_file = File::create(dst)?;
         let mut dst_buf = BufWriter::new(dst_file);
         Self::extract_text(bufread, &mut dst_buf)?;
         if del_src {
@@ -34,7 +32,7 @@ pub trait ExtractText {
         U: std::io::Write,
     {
         for line in src.lines() {
-            let mut line = line?;
+            let line = line?;
             let mut extracted = Self::extract_json(line)?;
             extracted.push_str("\n\n");
             let string_size = extracted.len();
@@ -57,7 +55,6 @@ pub trait ExtractText {
 
 #[cfg(test)]
 mod tests {
-    use std::{io::BufReader, os::unix::prelude::OsStrExt};
 
     use crate::error::Error;
 
@@ -85,11 +82,10 @@ mod tests {
         let test = r#"{"content":"words like words"}
         {"content":"when to use\n it"}
         {"content":"not so good"}
-        {"content":"to start\n with"}
-        "#;
+        {"content":"to start\n with"}"#;
         //let mut bufread = BufReader::new(test);
         let mut res = vec![];
-        TestExtract::extract_text(test.as_bytes(), &mut res);
+        TestExtract::extract_text(test.as_bytes(), &mut res).unwrap();
         let res = String::from_utf8_lossy(&res);
         let expected = "words like words
 

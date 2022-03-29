@@ -8,12 +8,11 @@ use crate::{
     ops::{Checksum, Compress, ExtractText, Split},
     versions::{Schema, Version},
 };
-use clap::{arg, Arg, ArgMatches};
+use clap::{arg, ArgMatches};
 use serde_json::Value;
 use std::borrow::Cow;
 use std::collections::HashSet;
 use std::{
-    fs::File,
     io::{BufRead, BufReader, Read, Write},
     path::PathBuf,
 };
@@ -74,18 +73,18 @@ impl Command for FilterTagDoc {
             //.expect("Value of 'DESTINATION' is required.")
             .into();
         let include: HashSet<Cow<str>> = match matches.values_of("include") {
-            Some(m) => m.map(|a| Cow::from(a)).collect(),
+            Some(m) => m.map(Cow::from).collect(),
             None => HashSet::new(),
         };
         let exclude: HashSet<Cow<str>> = match matches.values_of("exclude") {
-            Some(m) => m.map(|a| Cow::from(a)).collect(),
+            Some(m) => m.map(Cow::from).collect(),
             None => HashSet::new(),
         };
-
+        let clean = matches.is_present("clean");
         debug!("extracting from {:?} to {:?}", src, dst);
         debug!("Including {:?}", include);
         debug!("Excluding {:?}", exclude);
-        Self::filter_tags(&src, &dst, &include, &exclude)
+        Self::filter_tags(&src, &dst, clean, &include, &exclude)
             .expect("Error while filtering documents based on tags");
         Ok(())
     }
@@ -98,6 +97,7 @@ impl Command for FilterTagDoc {
             .about("TODO")
             .arg(arg!(--include <tags> "tags to include.").required(false).min_values(1).short('i'))
                 .arg(arg!(--exclude <tags> "tags to include.").required(false).min_values(1).short('e'))
+                .arg(arg!(--clean  "only return documents with no tags. include and exclude will be ignored").required(false))
                 .arg(arg!([SOURCE] "Corpus source file/folder. If folder, splits corpus files in provided folder"))
                 .arg(arg!([DESTINATION] "Corpus source file/folder. If folder, splits corpus files in provided folder"))
     }

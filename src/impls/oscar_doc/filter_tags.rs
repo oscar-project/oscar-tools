@@ -18,6 +18,7 @@ impl FilterTags for FilterTagDoc {
     fn filter_tags(
         src: &std::path::Path,
         dst: &std::path::Path,
+        clean: bool,
         include: &HashSet<Cow<str>>,
         exclude: &HashSet<Cow<str>>,
     ) -> Result<(), crate::error::Error> {
@@ -34,7 +35,7 @@ impl FilterTags for FilterTagDoc {
         let dst_file = File::create(dst)?;
         let mut dst_buf = BufWriter::new(dst_file);
 
-        Self::filter_write(bufread, &mut dst_buf, include, exclude)?;
+        Self::filter_write(bufread, &mut dst_buf, clean, include, exclude)?;
         Ok(())
     }
 }
@@ -42,10 +43,11 @@ impl FilterTags for FilterTagDoc {
 impl FilterTagDoc {
     fn filter_single_document(
         doc: &str,
+        clean: bool,
         include: &HashSet<Cow<str>>,
         exclude: &HashSet<Cow<str>>,
     ) -> Result<bool, Error> {
-        let document: serde_json::Value = serde_json::from_str(&doc)?;
+        let document: serde_json::Value = serde_json::from_str(doc)?;
 
         match &document["metadata"]["annotation"] {
             serde_json::Value::Array(arr) => {
@@ -53,7 +55,17 @@ impl FilterTagDoc {
                 Ok(Self::apply_filter_rules(&doc_tags, include, exclude))
             }
 
-            serde_json::Value::Null => Ok(include.is_empty() && exclude.is_empty()),
+            // If we don't have annotations
+            // If we in the --clean case, we return true
+            // Else if include is empty, return true
+            // if include is not empty, return false
+            serde_json::Value::Null => {
+                if clean | include.is_empty() {
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
+            }
             other => {
                 error!("Record has a malformed annotation field");
                 debug!("{other:#?}");
@@ -98,22 +110,31 @@ impl FilterTagDoc {
         // then it means that document has tags that should be excluded: we discard
         if !doc_tags.is_empty()
             && !exclude.is_empty()
-            && doc_tags.intersection(&exclude).count() != 0
+            && doc_tags.intersection(exclude).count() != 0
         {
             false
         } else {
             match (doc_tags.is_empty(), include.is_empty()) {
                 // no annotations on doc, but we filter on a specific set of annotations, so false.
                 (true, false) => false,
-                // annotations on doc,  but we want NO annotations (hence include is empty), so false.
-                (false, true) => false,
+                // annotations on doc, but no include constraint.
+                // Check intersection with exclude, if none, then true
+                (false, true) => {
+                    if exclude.is_empty() {
+                        error!("Either use --clean or provide exclude and/or include tags");
+                        false
+                    } else {
+                        // discard doc if exclude is intersect with doc_tags
+                        exclude.is_disjoint(doc_tags)
+                    }
+                }
 
                 // no annotations on doc, and we want no annotations, so it's true.
                 (true, true) => true,
 
                 // we got annotations and we want to filter on annotations.
                 // We check that doc tags contains required tags (include).
-                (false, false) => include.is_subset(&doc_tags),
+                (false, false) => include.is_subset(doc_tags),
             }
         }
     }
@@ -121,6 +142,7 @@ impl FilterTagDoc {
     fn filter_write<T, U>(
         src: T,
         dst: &mut U,
+        clean: bool,
         include: &HashSet<Cow<str>>,
         exclude: &HashSet<Cow<str>>,
     ) -> Result<(), Error>
@@ -129,7 +151,7 @@ impl FilterTagDoc {
         U: std::io::Write,
     {
         //check if there is an overlap between include and exclude
-        if (include.intersection(&exclude).count() != 0)
+        if (include.intersection(exclude).count() != 0)
             && !include.is_empty()
             && !exclude.is_empty()
         {
@@ -148,7 +170,7 @@ impl FilterTagDoc {
             match doc {
                 // if we could properly read the document from the writer,
                 // match on the filtering process
-                Ok(doc) => match Self::filter_single_document(&doc, &include, &exclude) {
+                Ok(doc) => match Self::filter_single_document(&doc, clean, include, exclude) {
                     // if the doc is well formed AND matches the constraints
                     Ok(true) => Some(doc),
                     // if the doc is well formed AND doesn't match the constraints
@@ -254,6 +276,9 @@ mod test {
         let res = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(res, true);
     }
+
+    // oscar-tools extract-tags from.jsonl to.jsonl --clean
+    // oscar-tools extract-tags from.jsonl to.jsonl --include foo --exclude bar
     #[test]
     fn test_edge_case_5b() {
         let mut doc_tags = HashSet::new();
@@ -352,7 +377,7 @@ mod test {
         exclude.insert(Cow::from("tiny"));
 
         let filters = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
-        assert_eq!(filters, false);
+        assert_eq!(filters, true);
     }
 
     #[test]
@@ -431,11 +456,10 @@ mod test {
 
     #[test]
     fn test_filter_write() {
-        let src = r#"{"content":"words like words", "annotation":["tiny"]}
-{"content":"when to use\n it", "annotation":["short_sentence"]}
-{"content":"not so good", "annotation":["tiny"]}
-{"content":"to start\n with", "annotation":[]}
-{"content":"to start\n with", "annotation":["tiny", "header"]}"#;
+        let src = r#"{"content":"words like words", "metadata":{"annotation":["tiny"]}}
+{"content":"when to use\n it", "metadata": {"annotation":null}}
+{"content":"to start\n with", "metadata": {"annotation":null}}
+{"content":"to start\n with", "metadata": {"annotation":["tiny", "header"]}}"#;
         let mut dst = vec![];
         let mut include = HashSet::new();
         let mut exclude = HashSet::new();
@@ -444,7 +468,7 @@ mod test {
         include.insert(Cow::from(including_tag));
         exclude.insert(Cow::from(excluding_tag));
 
-        FilterTagDoc::filter_write(src.as_bytes(), &mut dst, &include, &exclude).unwrap();
+        FilterTagDoc::filter_write(src.as_bytes(), &mut dst, false, &include, &exclude).unwrap();
         let dst = String::from_utf8_lossy(&dst);
         for doc in dst.lines() {
             let doc: serde_json::Value = serde_json::from_str(doc).unwrap();
@@ -463,11 +487,10 @@ mod test {
     #[test]
     fn test_filter_write_overlap() {
         // the idea is to test the case where there is an overlap between include and exclude.
-        let src = r#"{"content":"words like words", "annotation":["tiny", "short_sentence"]}
-{"content":"when to use\n it", "annotation":["short_sentence", "footer"]}
-{"content":"not so good", "annotation":["tiny"]}
-{"content":"to start\n with", "annotation":[]}
-{"content":"to start\n with", "annotation":["tiny", "header"]}"#;
+        let src = r#"{"content":"words like words", "metadata":{"annotation":["tiny"]}}
+{"content":"when to use\n it", "metadata": {"annotation":null}}
+{"content":"to start\n with", "metadata": {"annotation":null}}
+{"content":"to start\n with", "metadata": {"annotation":["tiny", "header"]}}"#;
         let mut dst = vec![];
         let mut include = HashSet::new();
         let mut exclude = HashSet::new();
@@ -476,6 +499,35 @@ mod test {
         include.extend(including_tags);
         exclude.extend(excluding_tags);
 
-        assert!(FilterTagDoc::filter_write(src.as_bytes(), &mut dst, &include, &exclude).is_err());
+        assert!(
+            FilterTagDoc::filter_write(src.as_bytes(), &mut dst, false, &include, &exclude)
+                .is_err()
+        );
+    }
+    #[test]
+    fn test_filter_write_clean() {
+        let src = r#"{"content":"words like words", "metadata":{"annotation":["tiny"]}}
+{"content":"when to use\n it", "metadata": {"annotation":null}}
+{"content":"to start\n with", "metadata": {"annotation":null}}
+{"content":"to start\n with", "metadata": {"annotation":["tiny", "header"]}}"#;
+        let mut dst = vec![];
+        let mut include = HashSet::new();
+        let mut exclude = HashSet::new();
+        let including_tag = "tiny";
+        let excluding_tag = "header";
+        include.insert(Cow::from(including_tag));
+        exclude.insert(Cow::from(excluding_tag));
+
+        FilterTagDoc::filter_write(src.as_bytes(), &mut dst, true, &include, &exclude).unwrap();
+        let dst = String::from_utf8_lossy(&dst);
+        for doc in dst.lines() {
+            let doc: serde_json::Value = serde_json::from_str(doc).unwrap();
+            let annotation = &doc["annotation"];
+
+            if let serde_json::Value::Null = annotation {
+            } else {
+                panic!("{:#?}", annotation)
+            }
+        }
     }
 }
