@@ -1,6 +1,6 @@
 /*! Compression operation, using gzip !*/
 use std::{
-    fs::{DirEntry, File},
+    fs::File,
     io::{BufRead, BufReader, Read, Write},
     path::{Path, PathBuf},
 };

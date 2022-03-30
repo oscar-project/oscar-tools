@@ -1,21 +1,23 @@
 //! OSCAR Schema v2 (See [oscar-corpus.com](https://oscar-corpus.com)) operation implementations.
 //!
 //! Implementations mostly use default trait implementations, as the format is simple.
-use std::{
-    fs::File,
-    io::{BufRead, BufReader, Read, Write},
-    path::PathBuf,
-};
-
-use clap::{arg, ArgMatches};
-use serde_json::Value;
-
+use crate::ops::FilterTags;
 use crate::{
     cli::Command,
     error::Error,
     ops::{Checksum, Compress, ExtractText, Split},
     versions::{Schema, Version},
 };
+use clap::{arg, ArgMatches};
+use serde_json::Value;
+use std::borrow::Cow;
+use std::collections::HashSet;
+use std::{
+    io::{BufRead, BufReader, Read, Write},
+    path::PathBuf,
+};
+
+use super::filter_tags::FilterTagDoc;
 
 /// OSCAR Schema v2.
 ///
@@ -33,8 +35,8 @@ impl Command for OscarDoc {
             .subcommand(SplitDoc::subcommand())
             .subcommand(CompressDoc::subcommand())
             .subcommand(ChecksumDoc::subcommand())
-            .subcommand(ExtractFromDoc::subcommand());
-
+            .subcommand(ExtractFromDoc::subcommand())
+            .subcommand(FilterTagDoc::subcommand());
 
         subcommand
     }
@@ -47,6 +49,7 @@ impl Command for OscarDoc {
             "compress" => CompressDoc::run(matches),
             "checksum" => ChecksumDoc::run(matches),
             "extract-text" => ExtractFromDoc::run(matches),
+            "extract-tags" => FilterTagDoc::run(matches),
             x => Err(Error::Custom(format!(
                 "{x} op is not supported on this corpus version"
             ))),
@@ -54,44 +57,90 @@ impl Command for OscarDoc {
     }
 }
 
-impl Schema for OscarDoc {
-    fn version() -> Version {
-        Version::new(2, 0, 0)
-    }
-}
-struct ExtractFromDoc;
-impl ExtractText for ExtractFromDoc {
-    
-}
-impl Command for ExtractFromDoc {
-    fn subcommand() -> clap::App<'static>
-    where
-        Self: Sized {
-        
-            clap::App::new("extract-text")
-            .about("Extract text from documents.")
-            .arg(arg!([SOURCE] "Corpus source file/."))
-            .arg(arg!([DESTINATION] "Corpus destination file/."))   
-            .arg(arg!(--del_src "If set, deletes source files as they are being extracted.").required(false))
-     
-    }
-
+impl Command for FilterTagDoc {
     fn run(matches: &ArgMatches) -> Result<(), Error>
     where
-    Self: Sized,
+        Self: Sized,
     {
+        debug!("Got params {:#?}", matches);
         let src: PathBuf = matches
             .value_of("SOURCE")
             .expect("Value of 'SOURCE' is required.")
             .into();
         let dst: PathBuf = matches
             .value_of("DESTINATION")
-            .expect("Value of 'DESTINATION' is required.")
+            .unwrap()
+            //.expect("Value of 'DESTINATION' is required.")
+            .into();
+        let include: HashSet<Cow<str>> = match matches.values_of("include") {
+            Some(m) => m.map(Cow::from).collect(),
+            None => HashSet::new(),
+        };
+        let exclude: HashSet<Cow<str>> = match matches.values_of("exclude") {
+            Some(m) => m.map(Cow::from).collect(),
+            None => HashSet::new(),
+        };
+        let clean = matches.is_present("clean");
+        debug!("extracting from {:?} to {:?}", src, dst);
+        debug!("Including {:?}", include);
+        debug!("Excluding {:?}", exclude);
+        Self::filter_tags(&src, &dst, clean, &include, &exclude)
+            .expect("Error while filtering documents based on tags");
+        Ok(())
+    }
+
+    fn subcommand() -> clap::App<'static>
+    where
+        Self: Sized,
+    {
+        clap::App::new("extract-tags")
+            .about("TODO")
+            .arg(arg!(--include <tags> "tags to include.").required(false).min_values(1).short('i'))
+                .arg(arg!(--exclude <tags> "tags to include.").required(false).min_values(1).short('e'))
+                .arg(arg!(--clean  "only return documents with no tags. include and exclude will be ignored").required(false))
+                .arg(arg!([SOURCE] "Corpus source file/folder. If folder, splits corpus files in provided folder"))
+                .arg(arg!([DESTINATION] "Corpus source file/folder. If folder, splits corpus files in provided folder"))
+    }
+}
+impl Schema for OscarDoc {
+    fn version() -> Version {
+        Version::new(2, 0, 0)
+    }
+}
+struct ExtractFromDoc;
+impl ExtractText for ExtractFromDoc {}
+impl Command for ExtractFromDoc {
+    fn subcommand() -> clap::App<'static>
+    where
+        Self: Sized,
+    {
+        clap::App::new("extract-text")
+            .about("Extract text from documents.")
+            .arg(arg!([SOURCE] "Corpus source file/.").required(true))
+            .arg(arg!([DESTINATION] "Corpus destination file/.").required(true))
+            .arg(
+                arg!(--del_src "If set, deletes source files as they are being extracted.")
+                    .required(false),
+            )
+    }
+
+    fn run(matches: &ArgMatches) -> Result<(), Error>
+    where
+        Self: Sized,
+    {
+        let src: PathBuf = matches
+            .value_of("SOURCE")
+            .unwrap()
+            //.expect("Value of 'SOURCE' is required.")
+            .into();
+        let dst: PathBuf = matches
+            .value_of("DESTINATION")
+            .unwrap()
+            //.expect("Value of 'DESTINATION' is required.")
             .into();
         let del_src = matches.is_present("del_src");
         Self::extract_from_path(&src, &dst, del_src)
     }
-        
 }
 struct ChecksumDoc;
 impl Checksum for ChecksumDoc {}
