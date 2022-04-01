@@ -101,7 +101,7 @@ impl FilterTagDoc {
         exclude: &HashSet<Cow<str>>,
     ) -> bool {
         //check the intersection between doc_tags and exclude and if not empty return false
-        //excluding rul
+        //excluding rule
 
         // Exclusion checking
         // if (doc_tags is not empty) AND

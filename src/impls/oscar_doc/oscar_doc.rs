@@ -80,7 +80,12 @@ impl Command for FilterTagDoc {
             Some(m) => m.map(Cow::from).collect(),
             None => HashSet::new(),
         };
+
         let clean = matches.is_present("clean");
+
+        if !clean && (include.is_empty() && exclude.is_empty()) {
+            panic!("Either specify include/exclude tags or use --clean.");
+        }
         debug!("extracting from {:?} to {:?}", src, dst);
         debug!("Including {:?}", include);
         debug!("Excluding {:?}", exclude);
