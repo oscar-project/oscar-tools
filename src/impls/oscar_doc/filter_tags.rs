@@ -121,7 +121,7 @@ impl FilterTagDoc {
                 // Check intersection with exclude, if none, then true
                 (false, true) => {
                     if exclude.is_empty() {
-                        error!("Either use --clean or provide exclude and/or include tags");
+                        // error!("Either use --clean or provide exclude and/or include tags");
                         false
                     } else {
                         // discard doc if exclude is intersect with doc_tags
