@@ -1,7 +1,6 @@
 use std::{
-    default,
     fs::{File, OpenOptions},
-    io::{BufRead, BufReader, BufWriter, Read, Write},
+    io::{BufRead, BufReader, BufWriter, Write},
     path::PathBuf,
 };
 
@@ -33,11 +32,11 @@ impl DedupTxt {
             let line_bytes = line.as_bytes();
             // check if line is a newline between documents
             if line == "\n" {
-                w.write(b"\n")?;
+                w.write_all(b"\n")?;
             } else if self.filter.detect(line_bytes) {
                 // write iif line is detected by filter as a unique, never seen line
-                w.write(line_bytes)?;
-                w.write(b"\n")?;
+                w.write_all(line_bytes)?;
+                w.write_all(b"\n")?;
             }
         }
 
