@@ -24,13 +24,18 @@ pub trait Command {
 pub(crate) fn build_app() -> clap::App<'static> {
     use clap::AppSettings;
 
+    use crate::impls::OscarTxt;
+
     clap::App::new("oscar-tools")
         .global_setting(AppSettings::ArgRequiredElseHelp)
         .subcommand(OscarDoc::subcommand())
+        .subcommand(OscarTxt::subcommand())
 }
 
 #[cfg(not(tarpaulin_include))]
 pub(crate) fn run(matches: ArgMatches) -> Result<(), Error> {
+    use crate::impls::OscarTxt;
+
     let (version, subcommand) = matches
         .subcommand()
         .ok_or_else(|| Error::Custom("No version provided!".to_string()))?;
@@ -39,6 +44,7 @@ pub(crate) fn run(matches: ArgMatches) -> Result<(), Error> {
         //      Some struct/enum that holds OSCAR versions, and implements a from string that
         //      buils something that implements run and runs the correct OSCAR version
         "v2" => OscarDoc::run(subcommand),
+        "v1" => OscarTxt::run(subcommand),
         x => Err(Error::Custom(format!("Unknown version {x}"))),
     }
 }
