@@ -1,4 +1,5 @@
-//! Deduplication
+//! Deduplication.
+//! Multiple deduplications could be implemented.
 
 use std::path::Path;
 

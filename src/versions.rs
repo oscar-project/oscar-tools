@@ -1,4 +1,6 @@
-//! Version trait
+//! Version trait.
+//!
+//! Should be implemented by corpus versions.
 
 use std::fmt::Display;
 pub(crate) trait Schema {

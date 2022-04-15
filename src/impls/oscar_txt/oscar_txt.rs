@@ -1,3 +1,4 @@
+/*! struct for implementors !*/
 use clap::ArgMatches;
 
 use crate::{

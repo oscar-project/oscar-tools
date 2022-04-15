@@ -1,3 +1,4 @@
+//! File checksum computing and checksum file writing.
 use std::{
     borrow::Cow,
     fs::File,

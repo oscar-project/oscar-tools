@@ -1,4 +1,4 @@
-//! Commands enum
+//! Commands traits and base CLI parsing
 
 use crate::error::Error;
 use crate::impls::OscarDoc;

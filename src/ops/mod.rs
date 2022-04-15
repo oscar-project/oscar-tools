@@ -1,4 +1,4 @@
-//! Operation traits
+//! Operation traits and basic implementations for some of them.
 //!
 //! A subset of these should be implemented for different corpus versions.
 mod checksum;

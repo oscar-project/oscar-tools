@@ -1,5 +1,4 @@
-/*!
- * The goal is to filter the documents based on the annotation ["short s", "header"]
+/*! The goal is to filter the documents based on the annotation ["short s", "header"]
  * take a document
  */
 use std::{

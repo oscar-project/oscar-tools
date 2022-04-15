@@ -1,3 +1,4 @@
+/*! Line hash based (exact) deduplication !*/
 use std::{
     fs::{File, OpenOptions},
     io::{BufRead, BufReader, BufWriter, Write},

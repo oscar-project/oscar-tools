@@ -4,8 +4,6 @@ extern crate log;
 
 mod cli;
 mod error;
-mod extract_clean;
-//mod extract_text;
 mod impls;
 mod lang_codes;
 mod ops;

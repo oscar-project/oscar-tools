@@ -1,4 +1,4 @@
-/*! Extracts textual content into new files, discarding metadata.
+/*! Extracts textual content into new files, discarding metadata. Should produce an OSCAR v1 (2019) compatible corpus.
 !*/
 
 use std::fs::File;

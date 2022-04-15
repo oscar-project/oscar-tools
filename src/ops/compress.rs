@@ -1,4 +1,4 @@
-/*! Compression operation, using gzip !*/
+/*! Compression operation, using gzip in default implementatino !*/
 use std::{
     fs::File,
     io::{BufRead, BufReader, Read, Write},

@@ -1,3 +1,4 @@
+/*! OSCAR v1 (2019) operation implementations. !*/
 mod dedup;
 mod oscar_txt;
 
