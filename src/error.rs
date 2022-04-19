@@ -1,5 +1,6 @@
 //! Errors
 #[derive(Debug)]
+#[cfg(not(tarpaulin_include))]
 pub enum Error {
     Io(std::io::Error),
     Json(serde_json::Error),

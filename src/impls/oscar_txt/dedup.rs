@@ -16,6 +16,7 @@ pub struct DedupTxt {
 }
 
 impl DedupTxt {
+    /// TODO: provide a way to specify filter?
     fn new(filter: Box<dyn Filter>) -> Self {
         Self { filter }
     }

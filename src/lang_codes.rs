@@ -41,11 +41,6 @@ impl Runnable for UpdateLangCodes {
 
             match entry {
                 Some(lang) => {
-                    // let lang = lang.to_str().ok_or(Error::Custom(format!(
-                    //     "language file name is not a unicode string: {:?}",
-                    //     lang
-                    // )))?;
-
                     let lang = lang.to_str().ok_or_else(|| {
                         Error::Custom(format!(
                             "language file name is not a unicode string: {:?}",

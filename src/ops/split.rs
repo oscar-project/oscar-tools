@@ -86,7 +86,9 @@ impl SplitWriter {
     pub fn rotate_file(&mut self) -> std::io::Result<()> {
         if self.nb_files == 1 {
             // moving foo.bar to foo_part_1.bar
-            let new_filename = Self::format_filename(&self.dst, 1).unwrap();
+            debug!("rotating {:?}", self.dst);
+            let new_filename = Self::format_filename(&self.dst, 1)
+                .expect("destination is not a file or has no extension. {}");
 
             // early return if filename exists
             if new_filename.exists() {
@@ -102,7 +104,7 @@ impl SplitWriter {
             }
         }
 
-        let filename = self.next_filename().unwrap();
+        let filename = self.next_filename().expect("could not get next filename");
 
         if filename.exists() {
             Err(std::io::Error::new(

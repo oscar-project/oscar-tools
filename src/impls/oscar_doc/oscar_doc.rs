@@ -94,7 +94,7 @@ impl Command for FilterTagDoc {
         Self: Sized,
     {
         clap::App::new("extract-tags")
-            .about("TODO")
+            .about("Extracts a OSCAR v2 corpus restricting tags. Included tags must be present and excluded ones must be absent. Use --clean to extract documents with no annotation only")
             .arg(arg!(--include <tags> "tags to include.").required(false).min_values(1).short('i'))
                 .arg(arg!(--exclude <tags> "tags to include.").required(false).min_values(1).short('e'))
                 .arg(arg!(--clean  "only return documents with no tags. include and exclude will be ignored").required(false))
@@ -183,8 +183,9 @@ impl Command for SplitDoc {
         Self: Sized,
     {
         clap::App::new("split")
-        .about("Splits files in provided directory into smaller files, creating a folder per original file.")
-        .long_about("TODO")
+        .about("File splitting. Supports file and folder splitting.")
+        .long_about("if SOURCE is a file, DESTINATION must be a valid file path.
+if SOURCE is a folder, DESTINATION must be an empty folder. Subfolders will be created for each file in SOURCE folder.")
             .arg(arg!([SOURCE] "Corpus source file/folder. If folder, splits corpus files in provided folder"))
             .arg(arg!([DESTINATION] "File/folder to write to."))
             .arg(arg!(-s --size <SIZE_MB> "Split size (in MBytes)").default_value("500").required(false))
@@ -323,44 +324,6 @@ impl OscarDoc {
     }
 }
 
-// TODO move into a proper op
-/*impl ExtractText for OscarDoc {
-    fn extract_text(
-        src: &std::path::Path,
-        dst: &std::path::Path,
-        del_src: bool,
-    ) -> Result<(), Error> {
-        if !src.is_file() {
-            warn!("{:?} is not a file: ignoring", src);
-            return Ok(());
-        }
-        let src_file = File::open(src)?;
-
-        if dst.exists() {
-            error!("File {:?} already exists!", dst);
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::AlreadyExists,
-                format!("{:?}", dst),
-            )
-            .into());
-        }
-
-        let mut dst = dst.to_path_buf();
-        dst.set_extension("txt");
-        let mut dest_file = File::create(&dst)?;
-
-        info!("extracting text from {:?} to {:?}", src, dst);
-
-        OscarDoc::extract(src_file, &mut dest_file)?;
-
-        if del_src {
-            std::fs::remove_file(src)?;
-        }
-
-        Ok(())
-    }
-}
- */
 #[cfg(test)]
 mod tests {
 
