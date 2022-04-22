@@ -95,8 +95,8 @@ impl Command for FilterTagDoc {
     {
         clap::App::new("extract-tags")
             .about("Extracts a OSCAR v2 corpus restricting tags. Included tags must be present and excluded ones must be absent. Use --clean to extract documents with no annotation only")
-            .arg(arg!(--include <tags> "tags to include.").required(false).min_values(1).short('i'))
-                .arg(arg!(--exclude <tags> "tags to include.").required(false).min_values(1).short('e'))
+            .arg(arg!(--include <tags> "space separated tags to include.").required(false).min_values(1).short('i'))
+                .arg(arg!(--exclude <tags> "space separated tags to exclude.").required(false).min_values(1).short('e'))
                 .arg(arg!(--clean  "only return documents with no tags. include and exclude will be ignored").required(false))
                 .arg(arg!([SOURCE] "Corpus source file/folder. If folder, splits corpus files in provided folder"))
                 .arg(arg!([DESTINATION] "Corpus source file/folder. If folder, splits corpus files in provided folder"))
@@ -115,9 +115,9 @@ impl Command for ExtractFromDoc {
         Self: Sized,
     {
         clap::App::new("extract-text")
-            .about("Extract text from documents.")
-            .arg(arg!([SOURCE] "Corpus source file/.").required(true))
-            .arg(arg!([DESTINATION] "Corpus destination file/.").required(true))
+            .about("Extract text from documents. The output will be a OSCAR v1 (2019)-compatible corpus.")
+            .arg(arg!([SOURCE] "Corpus source file.").required(true))
+            .arg(arg!([DESTINATION] "Corpus destination file (OSCAR v1 (2019)-like)").required(true))
             .arg(
                 arg!(--del_src "If set, deletes source files as they are being extracted.")
                     .required(false),
@@ -128,16 +128,8 @@ impl Command for ExtractFromDoc {
     where
         Self: Sized,
     {
-        let src: PathBuf = matches
-            .value_of("SOURCE")
-            .unwrap()
-            //.expect("Value of 'SOURCE' is required.")
-            .into();
-        let dst: PathBuf = matches
-            .value_of("DESTINATION")
-            .unwrap()
-            //.expect("Value of 'DESTINATION' is required.")
-            .into();
+        let src: PathBuf = matches.value_of("SOURCE").unwrap().into();
+        let dst: PathBuf = matches.value_of("DESTINATION").unwrap().into();
         let del_src = matches.is_present("del_src");
         Self::extract_from_path(&src, &dst, del_src)
     }
@@ -151,8 +143,8 @@ impl Command for ChecksumDoc {
     {
         clap::App::new("checksum")
         .about("Generate a checksum file for each subfolder of the provided path.")
-            .arg(arg!([SOURCE] "Corpus source file/folder. If folder, splits corpus files in provided folder"))
-            .arg(arg!(-J --num_threads <NUM_THREADS> "Number of threads to use (iif source is a folder). If 0, take all available").default_value("0").required(false))
+            .arg(arg!([SOURCE] "Corpus source folder."))
+            .arg(arg!(-J --num_threads <NUM_THREADS> "Number of threads to use. If 0, take all available").default_value("0").required(false))
     }
 
     fn run(matches: &ArgMatches) -> Result<(), Error>
@@ -243,8 +235,19 @@ impl Command for CompressDoc {
     {
         clap::App::new("compress")
         .about("Compress provided file and/or files in provided folder, up to a depth of 2.")
-            .arg(arg!([SOURCE] "Corpus source file/folder. If folder, splits corpus files in provided folder"))
-            .arg(arg!([DESTINATION] "File/folder to write to."))
+        .long_about("Compression of corpus files and folders.
+
+This command can be used to compress a single file (by specifying a source and destination file path) or a set of files (by specifying a source and destination folder path).
+
+If a file path is specified, oscar-tools will compress the given file and write it in the destination file path.
+If a folder is specified, oscar-tools will compress files in subfolders and write the compressed files in the destination folder path.
+
+Only one thread is used if a file is provided. If a folder is provided, takes all threads available. Use -J to specify a different number of threads.
+
+Only provide a folder (resp. file) as a destination if a folder (resp. file) has been provided.
+")
+            .arg(arg!([SOURCE] "File/folder to compress. If a folder is provided, keeps arborescence and compresses up to a depth of 2.").required(true))
+            .arg(arg!([DESTINATION] "File/folder to write to.").required(true))
             .arg(arg!(--del_src "If set, deletes source files as they are being compressed.").required(false))
             .arg(arg!(-J --num_threads <NUM_THREADS> "Number of threads to use (iif source is a folder). If 0, take all available").default_value("0").required(false))
     }
