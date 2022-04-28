@@ -29,11 +29,7 @@ pub trait ExtractText {
         }
         Ok(())
     }
-    fn extract_text<T, U>(
-        // src: &mut Box<dyn Iterator<Item = Document>>,
-        src: &mut T,
-        dst: &mut U,
-    ) -> Result<(), Error>
+    fn extract_text<T, U>(src: &mut T, dst: &mut U) -> Result<(), Error>
     where
         T: Iterator<Item = Result<Document, oscar_io::error::Error>>,
         U: std::io::Write,
@@ -82,17 +78,6 @@ mod tests {
         let res = TestExtract::extract_content(&doc);
         assert_eq!("foo", res);
     }
-    // #[test]
-    // fn test_not_string() {
-    //     let test = r#"{"content":22}"#;
-    //     let doc = Document::new(test.to_string(), HashMap::new(), Metadata::default());
-    //     let res = TestExtract::extract_content(&doc);
-    //     assert!(res.is_err());
-    //     match res.unwrap_err() {
-    //         Error::MalformedContent(_) => assert!(true),
-    //         _ => assert!(false),
-    //     }
-    // }
     #[test]
     fn test_extract_text() {
         let test = r#"{"content":"words like words"}
@@ -114,7 +99,6 @@ mod tests {
                 Metadata::default(),
             ))
         });
-        //let mut bufread = BufReader::new(test);
         let mut res = vec![];
         TestExtract::extract_text(&mut test, &mut res).unwrap();
         let res = String::from_utf8_lossy(&res);
