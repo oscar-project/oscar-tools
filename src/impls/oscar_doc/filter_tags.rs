@@ -8,6 +8,8 @@ use std::{
     io::{BufReader, BufWriter},
 };
 
+use oscar_io::oscar_doc::{Document, SplitFolderReader, SplitReader, Writer};
+
 use crate::error::Error;
 
 use crate::ops::FilterTags;
@@ -18,59 +20,81 @@ impl FilterTags for FilterTagDoc {
         src: &std::path::Path,
         dst: &std::path::Path,
         clean: bool,
-        include: &HashSet<Cow<str>>,
-        exclude: &HashSet<Cow<str>>,
+        include: &HashSet<&str>,
+        exclude: &HashSet<&str>,
     ) -> Result<(), crate::error::Error> {
-        let file = File::open(src)?;
-        let bufread = BufReader::new(file);
-        if dst.exists() {
-            error!("File exist!");
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::AlreadyExists,
-                format!("File exist {:?}", dst),
-            )
-            .into());
-        }
+        // let file = File::open(src)?;
+        // let bufread = BufReader::new(file);
+        // if dst.exists() {
+        //     error!("File exist!");
+        //     return Err(std::io::Error::new(
+        //         std::io::ErrorKind::AlreadyExists,
+        //         format!("File exist {:?}", dst),
+        //     )
+        //     .into());
+        // }
         let dst_file = File::create(dst)?;
         let mut dst_buf = BufWriter::new(dst_file);
 
-        Self::filter_write(bufread, &mut dst_buf, clean, include, exclude)?;
+        let mut cr = SplitFolderReader::new(src)?;
+        let mut wr = Writer::new(dst_buf);
+        Self::filter_write(&mut cr, &mut wr, clean, include, exclude)?;
         Ok(())
     }
 }
 
 impl FilterTagDoc {
     fn filter_single_document(
-        doc: &str,
+        doc: &Document,
         clean: bool,
-        include: &HashSet<Cow<str>>,
-        exclude: &HashSet<Cow<str>>,
+        include: &HashSet<&str>,
+        exclude: &HashSet<&str>,
     ) -> Result<bool, Error> {
-        let document: serde_json::Value = serde_json::from_str(doc)?;
+        // let document: serde_json::Value = serde_json::from_str(doc)?;
 
-        match &document["metadata"]["annotation"] {
-            serde_json::Value::Array(arr) => {
-                let doc_tags = Self::convert_to_hashset(arr);
-                Ok(Self::apply_filter_rules(&doc_tags, include, exclude))
-            }
-
-            // If we don't have annotations
-            // If we in the --clean case, we return true
-            // Else if include is empty, return true
-            // if include is not empty, return false
-            serde_json::Value::Null => {
-                if clean | include.is_empty() {
-                    Ok(true)
-                } else {
-                    Ok(false)
-                }
-            }
-            other => {
-                error!("Record has a malformed annotation field");
-                debug!("{other:#?}");
-                Err(Error::MalformedContent(other.clone()))
+        #[inline]
+        fn check_empty_cond(clean: bool, include: &HashSet<&str>) -> Result<bool, Error> {
+            if clean | include.is_empty() {
+                Ok(true)
+            } else {
+                Ok(false)
             }
         }
+
+        match &doc.metadata().annotation() {
+            Some(annotations) => {
+                if annotations.is_empty() {
+                    check_empty_cond(clean, include)
+                } else {
+                    let doc_tags: HashSet<&str> = annotations.iter().map(|x| x.as_str()).collect();
+                    Ok(Self::apply_filter_rules(&doc_tags, include, exclude))
+                }
+            }
+            None => check_empty_cond(clean, include),
+        }
+        // // match &document["metadata"]["annotation"] {
+        //     serde_json::Value::Array(arr) => {
+        //         let doc_tags = Self::convert_to_hashset(arr);
+        //         Ok(Self::apply_filter_rules(&doc_tags, include, exclude))
+        //     }
+
+        //     // If we don't have annotations
+        //     // If we in the --clean case, we return true
+        //     // Else if include is empty, return true
+        //     // if include is not empty, return false
+        //     serde_json::Value::Null => {
+        //         if clean | include.is_empty() {
+        //             Ok(true)
+        //         } else {
+        //             Ok(false)
+        //         }
+        //     }
+        //     other => {
+        //         error!("Record has a malformed annotation field");
+        //         debug!("{other:#?}");
+        //         Err(Error::MalformedContent(other.clone()))
+        //     }
+        // }
     }
 
     fn convert_to_hashset(arr: &[serde_json::Value]) -> HashSet<Cow<str>> {
@@ -95,9 +119,9 @@ impl FilterTagDoc {
     ///     -if include is a subset of doc_tages -> true
     ///
     fn apply_filter_rules(
-        doc_tags: &HashSet<Cow<str>>,
-        include: &HashSet<Cow<str>>,
-        exclude: &HashSet<Cow<str>>,
+        doc_tags: &HashSet<&str>,
+        include: &HashSet<&str>,
+        exclude: &HashSet<&str>,
     ) -> bool {
         //check the intersection between doc_tags and exclude and if not empty return false
         //excluding rul
@@ -140,13 +164,13 @@ impl FilterTagDoc {
     /// Will read documents from a Reader and output document that match predicates into a Writer.
     fn filter_write<T, U>(
         src: T,
-        dst: &mut U,
+        dst: &mut Writer<U>,
         clean: bool,
-        include: &HashSet<Cow<str>>,
-        exclude: &HashSet<Cow<str>>,
+        include: &HashSet<&str>,
+        exclude: &HashSet<&str>,
     ) -> Result<(), Error>
     where
-        T: std::io::BufRead,
+        T: Iterator<Item = Result<Document, oscar_io::error::Error>>,
         U: std::io::Write,
     {
         //check if there is an overlap between include and exclude
@@ -160,12 +184,10 @@ impl FilterTagDoc {
             ));
         }
 
-        let documents = src.lines();
-
         // apply filter_single_document to documents
         // for documents that have not been filtered out, write them in the dst.
 
-        let results = documents.filter_map(|doc| -> Option<String> {
+        let results = src.filter_map(|doc| -> Option<Document> {
             match doc {
                 // if we could properly read the document from the writer,
                 // match on the filtering process
@@ -190,12 +212,7 @@ impl FilterTagDoc {
         });
 
         for mut doc in results {
-            doc.push('\n');
-            let bytes_to_write = doc.len();
-            if bytes_to_write != dst.write(doc.as_bytes())? {
-                error!("Document has not been completely written!");
-                //TODO: return error?
-            }
+            dst.write(&doc)?;
         }
         dst.flush()?;
 
@@ -204,8 +221,17 @@ impl FilterTagDoc {
 }
 #[cfg(test)]
 mod test {
-    use std::{borrow::Cow, collections::HashSet};
+    use std::{
+        borrow::Cow,
+        collections::{HashMap, HashSet},
+        io::Cursor,
+    };
 
+    use oscar_io::{
+        common::Identification,
+        lang::Lang,
+        oscar_doc::{Document, Metadata, Reader, Writer},
+    };
     use serde_json::Value;
 
     use super::FilterTagDoc;
@@ -237,7 +263,7 @@ mod test {
         let doc_tags = HashSet::new();
         let include = HashSet::new();
         let mut exclude = HashSet::new();
-        exclude.insert(Cow::from("A"));
+        exclude.insert("A");
         let res = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(res, true);
     }
@@ -247,7 +273,7 @@ mod test {
         let doc_tags = HashSet::new();
         let mut include = HashSet::new();
         let exclude = HashSet::new();
-        include.insert(Cow::from("A"));
+        include.insert("A");
 
         let res = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(res, false);
@@ -258,7 +284,7 @@ mod test {
         let mut doc_tags = HashSet::new();
         let include = HashSet::new();
         let exclude = HashSet::new();
-        doc_tags.insert(Cow::from("A"));
+        doc_tags.insert("A");
 
         let res = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(res, false);
@@ -269,8 +295,8 @@ mod test {
         let mut doc_tags = HashSet::new();
         let include = HashSet::new();
         let mut exclude = HashSet::new();
-        doc_tags.insert(Cow::from("A"));
-        exclude.insert(Cow::from("B"));
+        doc_tags.insert("A");
+        exclude.insert("B");
 
         let res = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(res, true);
@@ -283,8 +309,8 @@ mod test {
         let mut doc_tags = HashSet::new();
         let include = HashSet::new();
         let mut exclude = HashSet::new();
-        doc_tags.insert(Cow::from("B"));
-        exclude.insert(Cow::from("B"));
+        doc_tags.insert("B");
+        exclude.insert("B");
 
         let res = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(res, false);
@@ -294,9 +320,9 @@ mod test {
         let mut doc_tags = HashSet::new();
         let mut include = HashSet::new();
         let exclude = HashSet::new();
-        include.insert(Cow::from("A"));
-        doc_tags.insert(Cow::from("A"));
-        doc_tags.insert(Cow::from("B"));
+        include.insert("A");
+        doc_tags.insert("A");
+        doc_tags.insert("B");
 
         let res = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(res, true);
@@ -306,8 +332,8 @@ mod test {
         let mut doc_tags = HashSet::new();
         let include = HashSet::new();
         let mut exclude = HashSet::new();
-        doc_tags.insert(Cow::from("A"));
-        exclude.insert(Cow::from("A"));
+        doc_tags.insert("A");
+        exclude.insert("A");
 
         let res = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(res, false)
@@ -319,9 +345,9 @@ mod test {
         let mut include = HashSet::new();
         let mut exclude = HashSet::new();
 
-        doc_tags.insert(Cow::from("nosiy"));
-        include.insert(Cow::from("short_sentences"));
-        exclude.insert(Cow::from("tiny"));
+        doc_tags.insert("nosiy");
+        include.insert("short_sentences");
+        exclude.insert("tiny");
 
         let filters = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(filters, false);
@@ -332,9 +358,9 @@ mod test {
         let mut include = HashSet::new();
         let mut exclude = HashSet::new();
 
-        doc_tags.insert(Cow::from("short_sentences"));
-        include.insert(Cow::from("short_sentences"));
-        exclude.insert(Cow::from("tiny"));
+        doc_tags.insert("short_sentences");
+        include.insert("short_sentences");
+        exclude.insert("tiny");
 
         let filters = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(filters, true);
@@ -345,9 +371,9 @@ mod test {
         let mut include = HashSet::new();
         let mut exclude = HashSet::new();
 
-        doc_tags.insert(Cow::from("tiny"));
-        include.insert(Cow::from("short_sentences"));
-        exclude.insert(Cow::from("tiny"));
+        doc_tags.insert("tiny");
+        include.insert("short_sentences");
+        exclude.insert("tiny");
 
         let filters = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(filters, false);
@@ -359,7 +385,7 @@ mod test {
         let mut include = HashSet::new();
         let exclude = HashSet::new();
 
-        include.insert(Cow::from("short_sentences"));
+        include.insert("short_sentences");
         // exclude.insert(Cow::from("tiny"));
 
         let filters = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
@@ -372,8 +398,8 @@ mod test {
         let include = HashSet::new();
         let mut exclude = HashSet::new();
 
-        doc_tags.insert(Cow::from("nosiy"));
-        exclude.insert(Cow::from("tiny"));
+        doc_tags.insert("nosiy");
+        exclude.insert("tiny");
 
         let filters = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(filters, true);
@@ -387,9 +413,9 @@ mod test {
         let mut include = HashSet::new();
         let mut exclude = HashSet::new();
 
-        doc_tags.insert(Cow::from("tiny"));
-        exclude.insert(Cow::from("tiny"));
-        include.insert(Cow::from("tiny"));
+        doc_tags.insert("tiny");
+        exclude.insert("tiny");
+        include.insert("tiny");
 
         let filters = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(filters, false);
@@ -402,15 +428,15 @@ mod test {
         let mut include = HashSet::new();
         let mut exclude = HashSet::new();
 
-        doc_tags.insert(Cow::from("tiny"));
-        doc_tags.insert(Cow::from("short_sentences"));
-        doc_tags.insert(Cow::from("adult"));
+        doc_tags.insert("tiny");
+        doc_tags.insert("short_sentences");
+        doc_tags.insert("adult");
 
-        exclude.insert(Cow::from("header"));
-        exclude.insert(Cow::from("noisy"));
+        exclude.insert("header");
+        exclude.insert("noisy");
 
-        include.insert(Cow::from("tiny"));
-        include.insert(Cow::from("adult"));
+        include.insert("tiny");
+        include.insert("adult");
 
         let filters = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(filters, true);
@@ -423,15 +449,15 @@ mod test {
         let mut include = HashSet::new();
         let mut exclude = HashSet::new();
 
-        doc_tags.insert(Cow::from("tiny"));
-        doc_tags.insert(Cow::from("short_sentences"));
-        doc_tags.insert(Cow::from("adult"));
+        doc_tags.insert("tiny");
+        doc_tags.insert("short_sentences");
+        doc_tags.insert("adult");
 
-        exclude.insert(Cow::from("header"));
-        exclude.insert(Cow::from("tiny"));
+        exclude.insert("header");
+        exclude.insert("tiny");
 
-        include.insert(Cow::from("noisy"));
-        include.insert(Cow::from("adult"));
+        include.insert("noisy");
+        include.insert("adult");
 
         let filters = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(filters, false);
@@ -443,11 +469,11 @@ mod test {
         let mut include = HashSet::new();
         let mut exclude = HashSet::new();
 
-        doc_tags.insert(Cow::from("short_sentences"));
+        doc_tags.insert("short_sentences");
 
-        exclude.insert(Cow::from("header"));
+        exclude.insert("header");
 
-        include.insert(Cow::from("tiny"));
+        include.insert("tiny");
 
         let filters = FilterTagDoc::apply_filter_rules(&doc_tags, &include, &exclude);
         assert_eq!(filters, false);
@@ -455,69 +481,139 @@ mod test {
 
     #[test]
     fn test_filter_write() {
-        let src = r#"{"content":"words like words", "metadata":{"annotation":["tiny"]}}
-{"content":"when to use\n it", "metadata": {"annotation":null}}
-{"content":"to start\n with", "metadata": {"annotation":null}}
-{"content":"to start\n with", "metadata": {"annotation":["tiny", "header"]}}"#;
+        let contents = [
+            "words like words",
+            "when to use\n it",
+            "to start\n with",
+            "to start\n with",
+        ];
+        let metadata = [Some(vec!["tiny"]), None, None, Some(vec!["tiny", "header"])];
+        let documents: Vec<_> = contents
+            .into_iter()
+            .zip(metadata.into_iter())
+            .map(|(content, metadata)| {
+                let metadata: Option<Vec<String>> =
+                    metadata.map(|a| a.into_iter().map(String::from).collect());
+                Ok(Document::new(
+                    content.to_string(),
+                    HashMap::new(),
+                    Metadata::new(&Identification::new(Lang::En, 1.0), &metadata, &[]),
+                ))
+            })
+            .collect();
+
+        //         let src = r#"{"content":"words like words", "metadata":{"annotation":["tiny"]}}
+        // {"content":"when to use\n it", "metadata": {"annotation":null}}
+        // {"content":"to start\n with", "metadata": {"annotation":null}}
+        // {"content":"to start\n with", "metadata": {"annotation":["tiny", "header"]}}"#;
         let mut dst = vec![];
+        let mut wr = Writer::new(&mut dst);
         let mut include = HashSet::new();
         let mut exclude = HashSet::new();
         let including_tag = "tiny";
         let excluding_tag = "header";
-        include.insert(Cow::from(including_tag));
-        exclude.insert(Cow::from(excluding_tag));
+        include.insert(including_tag);
+        exclude.insert(excluding_tag);
 
-        FilterTagDoc::filter_write(src.as_bytes(), &mut dst, false, &include, &exclude).unwrap();
-        let dst = String::from_utf8_lossy(&dst);
-        for doc in dst.lines() {
-            let doc: serde_json::Value = serde_json::from_str(doc).unwrap();
-            let annotation = &doc["annotation"];
-            if let Value::Array(a) = annotation {
-                assert!(!a
-                    .iter()
-                    .any(|annotation: &Value| annotation == &Value::String("header".to_string())));
-                assert!(a
-                    .iter()
-                    .any(|annotation: &Value| annotation == &Value::String("tiny".to_string())));
+        FilterTagDoc::filter_write(documents.into_iter(), &mut wr, false, &include, &exclude)
+            .unwrap();
+
+        let dst_reader = Cursor::new(dst);
+        let cr = Reader::new(dst_reader);
+        for doc in cr {
+            let doc = doc.unwrap();
+            let annotations = doc.metadata().annotation();
+            if let Some(annotations) = annotations {
+                assert!(annotations.contains(&"tiny".to_string()));
+                assert!(!annotations.contains(&"header".to_string()));
             }
+            // let doc: serde_json::Value = serde_json::from_str(doc).unwrap();
+            // let annotation = &doc["annotation"];
+            // if let Value::Array(a) = annotation {
+            //     assert!(!a
+            //         .iter()
+            //         .any(|annotation: &Value| annotation == &Value::String("header".to_string())));
+            //     assert!(a
+            //         .iter()
+            //         .any(|annotation: &Value| annotation == &Value::String("tiny".to_string())));
+            // }
         }
     }
 
     #[test]
     fn test_filter_write_overlap() {
         // the idea is to test the case where there is an overlap between include and exclude.
-        let src = r#"{"content":"words like words", "metadata":{"annotation":["tiny"]}}
-{"content":"when to use\n it", "metadata": {"annotation":null}}
-{"content":"to start\n with", "metadata": {"annotation":null}}
-{"content":"to start\n with", "metadata": {"annotation":["tiny", "header"]}}"#;
+        let contents = [
+            "words like words",
+            "when to use\n it",
+            "to start\n with",
+            "to start\n with",
+        ];
+        let metadata = [Some(vec!["tiny"]), None, None, Some(vec!["tiny", "header"])];
+        let documents: Vec<_> = contents
+            .into_iter()
+            .zip(metadata.into_iter())
+            .map(|(content, metadata)| {
+                let metadata: Option<Vec<String>> =
+                    metadata.map(|a| a.into_iter().map(String::from).collect());
+                Ok(Document::new(
+                    content.to_string(),
+                    HashMap::new(),
+                    Metadata::new(&Identification::new(Lang::En, 1.0), &metadata, &[]),
+                ))
+            })
+            .collect();
         let mut dst = vec![];
+        let mut wr = Writer::new(&mut dst);
         let mut include = HashSet::new();
         let mut exclude = HashSet::new();
-        let including_tags = ["short_sentence", "tiny"].map(|a| Cow::from(a));
-        let excluding_tags = ["header", "short_sentence"].map(|a| Cow::from(a));
+        let including_tags = ["short_sentence", "tiny"];
+        let excluding_tags = ["header", "short_sentence"];
         include.extend(including_tags);
         exclude.extend(excluding_tags);
 
-        assert!(
-            FilterTagDoc::filter_write(src.as_bytes(), &mut dst, false, &include, &exclude)
-                .is_err()
-        );
+        assert!(FilterTagDoc::filter_write(
+            documents.into_iter(),
+            &mut wr,
+            false,
+            &include,
+            &exclude
+        )
+        .is_err());
     }
     #[test]
     fn test_filter_write_clean() {
-        let src = r#"{"content":"words like words", "metadata":{"annotation":["tiny"]}}
-{"content":"when to use\n it", "metadata": {"annotation":null}}
-{"content":"to start\n with", "metadata": {"annotation":null}}
-{"content":"to start\n with", "metadata": {"annotation":["tiny", "header"]}}"#;
+        let contents = [
+            "words like words",
+            "when to use\n it",
+            "to start\n with",
+            "to start\n with",
+        ];
+        let metadata = [Some(vec!["tiny"]), None, None, Some(vec!["tiny", "header"])];
+        let documents: Vec<_> = contents
+            .into_iter()
+            .zip(metadata.into_iter())
+            .map(|(content, metadata)| {
+                let metadata: Option<Vec<String>> =
+                    metadata.map(|a| a.into_iter().map(String::from).collect());
+                Ok(Document::new(
+                    content.to_string(),
+                    HashMap::new(),
+                    Metadata::new(&Identification::new(Lang::En, 1.0), &metadata, &[]),
+                ))
+            })
+            .collect();
         let mut dst = vec![];
+        let mut wr = Writer::new(&mut dst);
         let mut include = HashSet::new();
         let mut exclude = HashSet::new();
         let including_tag = "tiny";
         let excluding_tag = "header";
-        include.insert(Cow::from(including_tag));
-        exclude.insert(Cow::from(excluding_tag));
+        include.insert(including_tag);
+        exclude.insert(excluding_tag);
 
-        FilterTagDoc::filter_write(src.as_bytes(), &mut dst, true, &include, &exclude).unwrap();
+        FilterTagDoc::filter_write(documents.into_iter(), &mut wr, true, &include, &exclude)
+            .unwrap();
         let dst = String::from_utf8_lossy(&dst);
         for doc in dst.lines() {
             let doc: serde_json::Value = serde_json::from_str(doc).unwrap();

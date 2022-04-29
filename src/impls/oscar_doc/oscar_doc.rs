@@ -72,14 +72,17 @@ impl Command for FilterTagDoc {
             .unwrap()
             //.expect("Value of 'DESTINATION' is required.")
             .into();
-        let include: HashSet<Cow<str>> = match matches.values_of("include") {
-            Some(m) => m.map(Cow::from).collect(),
+        let include: HashSet<String> = match matches.values_of("include") {
+            Some(m) => m.map(|x| String::from(x)).collect(),
             None => HashSet::new(),
         };
-        let exclude: HashSet<Cow<str>> = match matches.values_of("exclude") {
-            Some(m) => m.map(Cow::from).collect(),
+        let exclude: HashSet<String> = match matches.values_of("exclude") {
+            Some(m) => m.map(|x| String::from(x)).collect(),
             None => HashSet::new(),
         };
+
+        let include = include.iter().map(|x| x.as_str()).collect();
+        let exclude = exclude.iter().map(|x| x.as_str()).collect();
         let clean = matches.is_present("clean");
         debug!("extracting from {:?} to {:?}", src, dst);
         debug!("Including {:?}", include);
