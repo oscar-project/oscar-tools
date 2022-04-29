@@ -23,16 +23,6 @@ impl FilterTags for FilterTagDoc {
         include: &HashSet<&str>,
         exclude: &HashSet<&str>,
     ) -> Result<(), crate::error::Error> {
-        // let file = File::open(src)?;
-        // let bufread = BufReader::new(file);
-        // if dst.exists() {
-        //     error!("File exist!");
-        //     return Err(std::io::Error::new(
-        //         std::io::ErrorKind::AlreadyExists,
-        //         format!("File exist {:?}", dst),
-        //     )
-        //     .into());
-        // }
         let dst_file = File::create(dst)?;
         let mut dst_buf = BufWriter::new(dst_file);
 
@@ -50,8 +40,6 @@ impl FilterTagDoc {
         include: &HashSet<&str>,
         exclude: &HashSet<&str>,
     ) -> Result<bool, Error> {
-        // let document: serde_json::Value = serde_json::from_str(doc)?;
-
         #[inline]
         fn check_empty_cond(clean: bool, include: &HashSet<&str>) -> Result<bool, Error> {
             if clean | include.is_empty() {
@@ -72,29 +60,6 @@ impl FilterTagDoc {
             }
             None => check_empty_cond(clean, include),
         }
-        // // match &document["metadata"]["annotation"] {
-        //     serde_json::Value::Array(arr) => {
-        //         let doc_tags = Self::convert_to_hashset(arr);
-        //         Ok(Self::apply_filter_rules(&doc_tags, include, exclude))
-        //     }
-
-        //     // If we don't have annotations
-        //     // If we in the --clean case, we return true
-        //     // Else if include is empty, return true
-        //     // if include is not empty, return false
-        //     serde_json::Value::Null => {
-        //         if clean | include.is_empty() {
-        //             Ok(true)
-        //         } else {
-        //             Ok(false)
-        //         }
-        //     }
-        //     other => {
-        //         error!("Record has a malformed annotation field");
-        //         debug!("{other:#?}");
-        //         Err(Error::MalformedContent(other.clone()))
-        //     }
-        // }
     }
 
     fn convert_to_hashset(arr: &[serde_json::Value]) -> HashSet<Cow<str>> {
@@ -144,7 +109,6 @@ impl FilterTagDoc {
                 // Check intersection with exclude, if none, then true
                 (false, true) => {
                     if exclude.is_empty() {
-                        // error!("Either use --clean or provide exclude and/or include tags");
                         false
                     } else {
                         // discard doc if exclude is intersect with doc_tags
@@ -527,16 +491,6 @@ mod test {
                 assert!(annotations.contains(&"tiny".to_string()));
                 assert!(!annotations.contains(&"header".to_string()));
             }
-            // let doc: serde_json::Value = serde_json::from_str(doc).unwrap();
-            // let annotation = &doc["annotation"];
-            // if let Value::Array(a) = annotation {
-            //     assert!(!a
-            //         .iter()
-            //         .any(|annotation: &Value| annotation == &Value::String("header".to_string())));
-            //     assert!(a
-            //         .iter()
-            //         .any(|annotation: &Value| annotation == &Value::String("tiny".to_string())));
-            // }
         }
     }
 
