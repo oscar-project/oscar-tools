@@ -7,6 +7,7 @@ mod dedup;
 mod extract_text;
 mod filter_tags;
 mod split;
+pub mod sampling;
 pub(crate) use checksum::Checksum;
 pub(crate) use compress::Compress;
 pub(crate) use dedup::Dedup;
