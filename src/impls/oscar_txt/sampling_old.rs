@@ -1,6 +1,8 @@
 /*! The goal is to sample from& files until it reach certain file size reached limits */
 //read the files [for every new line separated senteces is sentences ]
 
+mod indexed_reader;
+
 use crate::cli::Command;
 use crate::error::{self, Error};
 use crate::ops::SampleText;
@@ -13,6 +15,14 @@ use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::ops::Index;
 use std::path::{Path, PathBuf};
+
+/// Goes through the corpus, counting byte offsets for each line. 
+/// It implements iterator over usizes, that are the byte offsets.
+/// For convinience, also has something that implements iterator over (usize, usize) with offset and size
+struct Indexer {}
+
+/// Reader over corpus that skips to provided offsets and returns [Deref<Target=str>].
+struct IndexedReader {}
 
 impl Command for SampleDoc {
     fn subcommand() -> clap::App<'static>
@@ -43,6 +53,7 @@ impl Command for SampleDoc {
 pub struct SampleDoc;
 impl SampleDoc {
     fn indexing(src: &Path) -> Result<HashMap<usize, usize>, error::Error> {
+        println!("indexing the corpus...");
         let corpus = File::open(&src)?;
         let corpus_buf = BufReader::new(corpus);
         let mut collection: HashMap<usize, usize> = HashMap::new();
@@ -51,12 +62,16 @@ impl SampleDoc {
             let doc_size = doc.len();
             collection.insert(index, doc_size);
         }
+        println!("done indexing.");
         Ok(collection)
     }
     fn sample_(collection: &HashMap<usize, usize>, max_size: usize) -> Result<Vec<usize>, Error> {
+        println!("sampling doc indices...");
         let mut rng = thread_rng();
         let mut size = 0;
-        let idx = Vec::from_iter(collection.keys());
+        let mut idx = Vec::with_capacity(collection.len());
+        idx.extend(collection.keys());
+        // let idx = Vec::from_iter(collection.keys());
         let mut random_idx = Vec::<usize>::new();
         loop {
             let sample = idx
@@ -75,7 +90,7 @@ impl SampleDoc {
             if size + doc_length > max_size {
                 break;
             }
-            random_idx.push(**sample);
+            random_idx.push(*sample);
             size += doc_length;
         }
         random_idx.sort_unstable();
@@ -83,22 +98,42 @@ impl SampleDoc {
         if random_idx.is_empty() {
             return Err(Error::Custom("no sample is selected".to_string()));
         }
+        println!("done");
 
         Ok(random_idx)
     }
     fn get_sample(src: &Path, dst: &Path, sample_idx: &Vec<usize>) -> Result<(), Error> {
+        println!("reading corpus and sampling...");
         let corpus = File::open(&src)?;
         let corpus_buf = BufReader::new(corpus);
         let dst_file = File::create(dst)?;
         let mut dst_buf = BufWriter::new(dst_file);
-        for (index, line) in corpus_buf.lines().enumerate() {
-            let line = line?;
-            if sample_idx.iter().any(|idx| idx == &index) {
-                dst_buf.write(line.as_bytes())?;
-                dst_buf.write(b"\n")?;
-            }
-        }
-        dst_buf.flush()?;
+        // for (index, line) in corpus_buf.lines().enumerate() {
+        //     let line = line?;
+        //     if sample_idx.iter().any(|idx| idx == &index) {
+        //         dst_buf.write(line.as_bytes())?;
+        //         dst_buf.write(b"\n")?;
+        //     }
+        // }
+        // dst_buf.flush()?;
+        // let mut corpus_lines = corpus_buf.seek_relative(offset)
+        
+        // let mut deltas = sample_idx.windows(2).map(|w| w[1] - w[0]);
+        // for line in corpus_lines {
+        //     corpus_lines.skip(3);
+        // }
+        // for idx in sample_idx {
+        //     match corpus_lines.skip(idx-cursor).next() {
+        //         Some(line) => {
+        //             let line = line?;
+        //             dst_buf.write(line.as_bytes())?;
+        //             dst_buf.write(b"\n")?;
+        //             cursor = *idx;
+        //         }
+        //         None => panic!(":("),
+        //     }
+        // }
+        println!("done");
         Ok(())
     }
 }
