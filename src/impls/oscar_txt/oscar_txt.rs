@@ -4,6 +4,7 @@ use clap::ArgMatches;
 use crate::{
     cli::Command,
     error::Error,
+    impls::oscar_txt::SampleDoc,
     versions::{Schema, Version},
 };
 
@@ -23,8 +24,9 @@ impl Command for OscarTxt {
         Self: Sized,
     {
         // add commands here
-        let subcommand =
-            clap::App::new(Self::version().to_string()).subcommand(DedupTxt::subcommand());
+        let subcommand = clap::App::new(Self::version().to_string())
+            .subcommand(DedupTxt::subcommand())
+            .subcommand(SampleDoc::subcommand());
 
         subcommand
     }
@@ -34,6 +36,7 @@ impl Command for OscarTxt {
         debug!("subcommand is {subcommand}");
         match subcommand {
             "dedup" => DedupTxt::run(matches),
+            "sample" => SampleDoc::run(matches),
             x => Err(Error::Custom(format!(
                 "{x} op is not supported on this corpus version"
             ))),
