@@ -4,11 +4,11 @@ use clap::ArgMatches;
 use crate::{
     cli::Command,
     error::Error,
-    versions::{Schema, Version}, impls::oscar_txt::SampleDoc,
+    impls::oscar_txt::SampleDoc,
+    versions::{Schema, Version},
 };
 
 use super::DedupTxt;
-
 
 pub struct OscarTxt;
 
@@ -24,10 +24,9 @@ impl Command for OscarTxt {
         Self: Sized,
     {
         // add commands here
-        let subcommand =
-            clap::App::new(Self::version().to_string())
-             .subcommand(DedupTxt::subcommand())
-             .subcommand(SampleDoc::subcommand());
+        let subcommand = clap::App::new(Self::version().to_string())
+            .subcommand(DedupTxt::subcommand())
+            .subcommand(SampleDoc::subcommand());
 
         subcommand
     }

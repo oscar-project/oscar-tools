@@ -2,19 +2,19 @@ use std::io::{BufRead, Seek};
 /// Reader over corpus that skips to provided offsets and returns [Deref<Target=str>].
 /// inner is a reader over a corpus
 /// indices is an iterator over the line offsets to keep
-pub struct IndexedReader<R: BufRead+Seek, I: Iterator<Item=u64>> {
+pub struct IndexedReader<R: BufRead + Seek, I: Iterator<Item = u64>> {
     inner: R,
-    indices: I
+    indices: I,
 }
 
-impl<R: BufRead+Seek, I: Iterator<Item=u64>> IndexedReader<R, I> {
+impl<R: BufRead + Seek, I: Iterator<Item = u64>> IndexedReader<R, I> {
     pub fn new(inner: R, indices: I) -> Self {
-        Self {inner, indices}
-    } 
+        Self { inner, indices }
+    }
 }
 
-impl<R: BufRead+Seek, I: Iterator<Item=u64>> Iterator for IndexedReader<R, I> {
-    type Item = std::io::Result<String>; 
+impl<R: BufRead + Seek, I: Iterator<Item = u64>> Iterator for IndexedReader<R, I> {
+    type Item = std::io::Result<String>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(next_offset) = self.indices.next() {
@@ -43,16 +43,11 @@ impl<R: BufRead+Seek, I: Iterator<Item=u64>> Iterator for IndexedReader<R, I> {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Cursor;
     use super::IndexedReader;
+    use std::io::Cursor;
     #[test]
     fn test_indexed_reader() {
-        let lines = vec![
-            "foo",
-            "bar ij",
-            r#"baz  \ni"#,
-            "quux"
-        ];
+        let lines = vec!["foo", "bar ij", r#"baz  \ni"#, "quux"];
         let text = lines.join("\n");
 
         let mut c = Cursor::new(text);
@@ -64,25 +59,20 @@ mod tests {
                 0 => assert_eq!(indexed_string.unwrap().trim(), lines[0]),
                 1 => assert_eq!(indexed_string.unwrap().trim(), lines[2]),
                 2 => assert_eq!(indexed_string.unwrap().trim(), lines[3]),
-                _ => panic!("too far away!")
+                _ => panic!("too far away!"),
             }
         }
     }
 
     #[test]
     fn test_indexed_reader_out_of_bounds() {
-        let lines = vec![
-            "foo",
-            "bar ij",
-            r#"baz  \ni"#,
-            "quux"
-        ];
+        let lines = vec!["foo", "bar ij", r#"baz  \ni"#, "quux"];
         let text = lines.join("\n");
 
         let mut c = Cursor::new(text);
         let mut i = [0, 2, 3000, 3000].into_iter();
         let it = IndexedReader::new(&mut c, &mut i);
-        let strings : std::io::Result<Vec<_>>= it.collect();
+        let strings: std::io::Result<Vec<_>> = it.collect();
         println!("{strings:?}");
         assert_eq!(strings.unwrap().len(), 2);
     }
