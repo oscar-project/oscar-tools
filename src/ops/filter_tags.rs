@@ -7,7 +7,7 @@ pub trait FilterTags {
         src: &Path,
         dst: &Path,
         clean: bool,
-        include: &HashSet<Cow<str>>,
-        exclude: &HashSet<Cow<str>>,
+        include: &HashSet<&str>,
+        exclude: &HashSet<&str>,
     ) -> Result<(), Error>;
 }
