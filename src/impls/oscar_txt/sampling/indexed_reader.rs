@@ -2,7 +2,7 @@ use std::io::{BufRead, Seek};
 /// Reader over corpus that skips to provided offsets and returns [Deref<Target=str>].
 /// inner is a reader over a corpus
 /// indices is an iterator over the line offsets to keep
-struct IndexedReader<R: BufRead+Seek, I: Iterator<Item=u64>> {
+pub struct IndexedReader<R: BufRead+Seek, I: Iterator<Item=u64>> {
     inner: R,
     indices: I
 }
@@ -28,7 +28,13 @@ impl<R: BufRead+Seek, I: Iterator<Item=u64>> Iterator for IndexedReader<R, I> {
             if let Err(e) = self.inner.read_line(&mut ret) {
                 return Some(Err(e));
             };
-            Some(Ok(ret))
+
+            // Check if ret is empty (out of bounds?), and end iterator if it is
+            if ret.is_empty() {
+                None
+            } else {
+                Some(Ok(ret))
+            }
         } else {
             None
         }
@@ -74,10 +80,10 @@ mod tests {
         let text = lines.join("\n");
 
         let mut c = Cursor::new(text);
-        let mut i = [0, 2, 3000].into_iter();
+        let mut i = [0, 2, 3000, 3000].into_iter();
         let it = IndexedReader::new(&mut c, &mut i);
         let strings : std::io::Result<Vec<_>>= it.collect();
         println!("{strings:?}");
-        assert!(strings.is_err())
+        assert_eq!(strings.unwrap().len(), 2);
     }
 }

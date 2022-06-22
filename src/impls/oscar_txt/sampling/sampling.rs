@@ -3,6 +3,8 @@
 
 use crate::cli::Command;
 use crate::error::{self, Error};
+use crate::impls::oscar_txt::sampling::indexed_reader::IndexedReader;
+use crate::impls::oscar_txt::sampling::indexer::Indexer;
 use crate::ops::SampleText;
 use clap::arg;
 use itertools::Itertools;
@@ -44,27 +46,24 @@ impl Command for SampleDoc {
 // do not know what is dyn is
 pub struct SampleDoc;
 impl SampleDoc {
-    fn indexing(src: &Path) -> Result<HashMap<usize, usize>, error::Error> {
+    fn indexing(src: &Path) -> Result<HashMap<u64, usize>, error::Error> {
         println!("indexing the corpus...");
         let corpus = File::open(&src)?;
         let corpus_buf = BufReader::new(corpus);
         let mut collection: HashMap<usize, usize> = HashMap::new();
-        for (index, doc) in corpus_buf.lines().enumerate() {
-            let doc = doc?;
-            let doc_size = doc.len();
-            collection.insert(index, doc_size);
-        }
-        println!("done indexing.");
-        Ok(collection)
+        let mut indexer = Indexer::new(corpus_buf);
+        // let ret : std::io::Result<HashMap<_, _>>= indexer.collect();
+        let ret : std::io::Result<_>= indexer.collect();
+        Ok(ret?)
     }
-    fn sample_(collection: &HashMap<usize, usize>, max_size: usize) -> Result<Vec<usize>, Error> {
+    fn sample_(collection: &HashMap<u64, usize>, max_size: usize) -> Result<Vec<u64>, Error> {
         println!("sampling doc indices...");
         let mut rng = thread_rng();
         let mut size = 0;
         let mut idx = Vec::with_capacity(collection.len());
         idx.extend(collection.keys());
         // let idx = Vec::from_iter(collection.keys());
-        let mut random_idx = Vec::<usize>::new();
+        let mut random_idx = Vec::new();
         loop {
             let sample = idx
                 .choose(&mut rng)
@@ -94,37 +93,19 @@ impl SampleDoc {
 
         Ok(random_idx)
     }
-    fn get_sample(src: &Path, dst: &Path, sample_idx: &Vec<usize>) -> Result<(), Error> {
+    fn get_sample(src: &Path, dst: &Path, sample_idx: &Vec<u64>) -> Result<(), Error> {
         println!("reading corpus and sampling...");
         let corpus = File::open(&src)?;
         let corpus_buf = BufReader::new(corpus);
         let dst_file = File::create(dst)?;
         let mut dst_buf = BufWriter::new(dst_file);
-        // for (index, line) in corpus_buf.lines().enumerate() {
-        //     let line = line?;
-        //     if sample_idx.iter().any(|idx| idx == &index) {
-        //         dst_buf.write(line.as_bytes())?;
-        //         dst_buf.write(b"\n")?;
-        //     }
-        // }
-        // dst_buf.flush()?;
-        // let mut corpus_lines = corpus_buf.seek_relative(offset)
-        
-        // let mut deltas = sample_idx.windows(2).map(|w| w[1] - w[0]);
-        // for line in corpus_lines {
-        //     corpus_lines.skip(3);
-        // }
-        // for idx in sample_idx {
-        //     match corpus_lines.skip(idx-cursor).next() {
-        //         Some(line) => {
-        //             let line = line?;
-        //             dst_buf.write(line.as_bytes())?;
-        //             dst_buf.write(b"\n")?;
-        //             cursor = *idx;
-        //         }
-        //         None => panic!(":("),
-        //     }
-        // }
+
+        let it = IndexedReader::new(corpus_buf, sample_idx.into_iter().copied());
+        for line in it {
+            let line = line?;
+            dst_buf.write(line.as_bytes())?;
+        }
+        dst_buf.flush()?;
         println!("done");
         Ok(())
     }
@@ -154,12 +135,12 @@ mod tests {
         let mut file = NamedTempFile::new().unwrap();
         file.write_all(text.as_bytes()).unwrap();
         let path = file.into_temp_path();
-        let testmap: HashMap<usize, usize> = HashMap::from([(1, 48), (2, 269), (0, 26)]);
+        let testmap: HashMap<u64, usize> = HashMap::from([(27, 49), (76, 269), (0, 27)]);
         assert_eq!(SampleDoc::indexing(&path).unwrap(), testmap);
     }
     #[test]
     fn test_sample_sampling() {
-        let testmap: HashMap<usize, usize> = HashMap::from([(1, 48), (2, 269), (0, 26)]);
+        let testmap: HashMap<u64, usize> = HashMap::from([(1, 48), (2, 269), (0, 26)]);
         //test the sampling
         let max_size = 80;
         let sample = SampleDoc::sample_(&testmap, max_size).unwrap();
@@ -171,7 +152,7 @@ mod tests {
     }
     #[test]
     fn test_sample_sorting() {
-        let testmap: HashMap<usize, usize> = HashMap::from([(1, 48), (2, 269), (0, 26)]);
+        let testmap: HashMap<u64, usize> = HashMap::from([(1, 48), (2, 269), (0, 26)]);
         let max_size = 80;
         let sample = SampleDoc::sample_(&testmap, max_size).unwrap();
         let iter: Vec<usize> = sample.iter().map(|x| *testmap.get(x).unwrap()).collect();
@@ -188,6 +169,13 @@ mod tests {
     fn test_get_sample() {
         //the function should write the sampled documents into files
         let text = "Text messaging or texting \n or may also be sent via an Internet connection \n is the act of composing and sending electronic messages, typically consisting of alphabetic and numeric characters, between two or more users of mobile devices, desktops/laptops, or another type of compatible computer. Text messages may be sent over a cellular network";
+        let text = "foo
+bar
+baz
+quux
+the quick brown fox 
+jumps over the lazy dog
+rust is hard";
         let mut src = NamedTempFile::new().unwrap();
         src.write_all(text.as_bytes()).unwrap();
         let src_path = src.into_temp_path();
@@ -195,21 +183,27 @@ mod tests {
         let dst = NamedTempFile::new().unwrap();
         let dst_path = dst.into_temp_path();
 
-        let testmap: HashMap<usize, usize> = HashMap::from([(1, 48), (2, 269), (0, 26)]);
+        let testmap: HashMap<u64, usize> = SampleDoc::indexing(&src_path).unwrap();
         let max_size = 80;
-        let sample = SampleDoc::sample_(&testmap, max_size).unwrap();
+        let sampled_offsets = SampleDoc::sample_(&testmap, max_size).unwrap();
 
-        let _get = SampleDoc::get_sample(&src_path, &dst_path, &sample);
+        SampleDoc::get_sample(&src_path, &dst_path, &sampled_offsets).unwrap();
         let sampled_file = std::fs::read_to_string(&dst_path).unwrap();
-        println!("{:?}", sampled_file);
-        let get_index_text: Option<Vec<usize>> = sampled_file
-            .lines()
-            .map(|x| text.lines().position(|y| y == x))
-            .collect();
+        println!("{sampled_file:?}");
+        // check size is correct
+        assert!(sampled_file.len() < max_size);
 
-        println!("{:?} sample is ", sample);
-        println!("{:?} get_index_text is ", get_index_text);
-        assert_eq!(sample, get_index_text.unwrap());
+        let corpus_lines : Vec<&str> = text.lines().collect();
+        let mut positions_in_corpus = Vec::new();
+        for line in sampled_file.lines() {
+            let pos_in_corpus = corpus_lines.iter().position(|x| *x==line);
+            assert!(pos_in_corpus.is_some());
+            positions_in_corpus.push(pos_in_corpus.unwrap());
+        }
+
+        let mut expected = positions_in_corpus.clone();
+        expected.sort();
+        assert_eq!(positions_in_corpus, expected);
     }
     #[test]
     #[ignore]
