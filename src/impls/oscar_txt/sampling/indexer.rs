@@ -1,4 +1,4 @@
-use std::io::{BufRead, Seek, Sink};
+use std::io::{BufRead, Seek};
 /// Goes through the corpus, counting byte offsets for each line.
 /// It implements iterator over usizes, that are the byte offsets.
 /// For convinience, also has something that implements iterator over (usize, usize) with offset and size

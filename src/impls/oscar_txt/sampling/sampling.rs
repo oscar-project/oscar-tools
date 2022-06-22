@@ -13,8 +13,8 @@ use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{BufRead, BufReader, BufWriter, Write};
-use std::ops::Index;
+use std::io::{BufReader, BufWriter, Write};
+
 use std::path::{Path, PathBuf};
 
 impl Command for SampleDoc {
@@ -50,8 +50,7 @@ impl SampleDoc {
         info!("indexing the corpus...");
         let corpus = File::open(&src)?;
         let corpus_buf = BufReader::new(corpus);
-        let mut collection: HashMap<usize, usize> = HashMap::new();
-        let mut indexer = Indexer::new(corpus_buf);
+        let indexer = Indexer::new(corpus_buf);
         let ret: std::io::Result<_> = indexer.collect();
         Ok(ret?)
     }
@@ -129,7 +128,7 @@ impl SampleDoc {
             }
         }
 
-        sample_indices.sort();
+        sample_indices.sort_unstable();
         Ok(sample_indices)
     }
 
@@ -140,7 +139,7 @@ impl SampleDoc {
         let dst_file = File::create(dst)?;
         let mut dst_buf = BufWriter::new(dst_file);
 
-        let ir = IndexedReader::new(corpus_buf, sample_idx.into_iter().copied());
+        let ir = IndexedReader::new(corpus_buf, sample_idx.iter().copied());
         for line in ir {
             let line = line?;
             dst_buf.write(line.as_bytes())?;
@@ -178,14 +177,14 @@ impl SampleText for SampleDoc {
 }
 #[cfg(test)]
 mod tests {
-    use itertools::{Itertools, Position};
-    use std::io::{Read, Write};
-    use std::{collections::HashMap, ops::Index};
+    use itertools::{Itertools};
+    use std::io::{Write};
+    use std::{collections::HashMap};
     use tempfile::NamedTempFile;
 
     use crate::impls::oscar_txt::SampleDoc;
 
-    use super::SampleText;
+    
 
     #[test]
     fn test_index() {
@@ -226,7 +225,7 @@ mod tests {
     #[test]
     fn test_get_sample() {
         //the function should write the sampled documents into files
-        let text = "Text messaging or texting \n or may also be sent via an Internet connection \n is the act of composing and sending electronic messages, typically consisting of alphabetic and numeric characters, between two or more users of mobile devices, desktops/laptops, or another type of compatible computer. Text messages may be sent over a cellular network";
+        let _text = "Text messaging or texting \n or may also be sent via an Internet connection \n is the act of composing and sending electronic messages, typically consisting of alphabetic and numeric characters, between two or more users of mobile devices, desktops/laptops, or another type of compatible computer. Text messages may be sent over a cellular network";
         let text = "foo
 bar
 baz
@@ -260,7 +259,7 @@ rust is hard";
         }
 
         let mut expected = positions_in_corpus.clone();
-        expected.sort();
+        expected.sort_unstable();
         assert_eq!(positions_in_corpus, expected);
     }
     #[test]
