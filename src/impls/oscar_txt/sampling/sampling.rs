@@ -106,12 +106,7 @@ impl SampleDoc {
 
         let mut cur_size = 0;
         let mut sample_indices: Vec<u64> = Vec::new();
-        loop {
-            let idx = match offsets.pop() {
-                Some(idx) => idx,
-                None => break,
-            };
-
+        while let Some(idx) = offsets.pop() {
             let doc_size = collection.get(idx).unwrap();
 
             // if doc fits, add it
@@ -132,7 +127,7 @@ impl SampleDoc {
         Ok(sample_indices)
     }
 
-    fn write_samples(src: &Path, dst: &Path, sample_idx: &Vec<u64>) -> Result<(), Error> {
+    fn write_samples(src: &Path, dst: &Path, sample_idx: &[u64]) -> Result<(), Error> {
         info!("reading corpus and writing samples...");
         let corpus = File::open(&src)?;
         let corpus_buf = BufReader::new(corpus);
@@ -177,14 +172,12 @@ impl SampleText for SampleDoc {
 }
 #[cfg(test)]
 mod tests {
-    use itertools::{Itertools};
-    use std::io::{Write};
-    use std::{collections::HashMap};
+    use itertools::Itertools;
+    use std::collections::HashMap;
+    use std::io::Write;
     use tempfile::NamedTempFile;
 
     use crate::impls::oscar_txt::SampleDoc;
-
-    
 
     #[test]
     fn test_index() {

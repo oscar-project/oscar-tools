@@ -2,7 +2,7 @@
 !*/
 
 use std::fs::File;
-use std::io::{BufReader, BufWriter};
+use std::io::BufWriter;
 use std::path::Path;
 
 use oscar_io::oscar_doc::{Document, SplitFolderReader};
@@ -66,8 +66,6 @@ mod tests {
 
     use oscar_io::oscar_doc::{Document, Metadata};
 
-    use crate::error::Error;
-
     use super::ExtractText;
     struct TestExtract;
     impl ExtractText for TestExtract {}
@@ -80,11 +78,6 @@ mod tests {
     }
     #[test]
     fn test_extract_text() {
-        let test = r#"{"content":"words like words"}
-        {"content":"when to use\n it"}
-        {"content":"not so good"}
-        {"content":"to start\n with"}"#;
-
         let mut test = vec![
             "words like words",
             "when to use\nit",

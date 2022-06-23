@@ -5,10 +5,10 @@ use std::{
     borrow::Cow,
     collections::HashSet,
     fs::File,
-    io::{BufReader, BufWriter},
+    io::{BufWriter},
 };
 
-use oscar_io::oscar_doc::{Document, SplitFolderReader, SplitReader, Writer};
+use oscar_io::oscar_doc::{Document, SplitFolderReader, Writer};
 
 use crate::error::Error;
 
@@ -24,7 +24,7 @@ impl FilterTags for FilterTagDoc {
         exclude: &HashSet<&str>,
     ) -> Result<(), crate::error::Error> {
         let dst_file = File::create(dst)?;
-        let mut dst_buf = BufWriter::new(dst_file);
+        let dst_buf = BufWriter::new(dst_file);
 
         let mut cr = SplitFolderReader::new(src)?;
         let mut wr = Writer::new(dst_buf);
@@ -175,7 +175,7 @@ impl FilterTagDoc {
             }
         });
 
-        for mut doc in results {
+        for doc in results {
             dst.write(&doc)?;
         }
         dst.flush()?;
@@ -186,7 +186,6 @@ impl FilterTagDoc {
 #[cfg(test)]
 mod test {
     use std::{
-        borrow::Cow,
         collections::{HashMap, HashSet},
         io::Cursor,
     };
@@ -196,7 +195,7 @@ mod test {
         lang::Lang,
         oscar_doc::{Document, Metadata, Reader, Writer},
     };
-    use serde_json::Value;
+    
 
     use super::FilterTagDoc;
 

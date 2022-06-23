@@ -10,7 +10,7 @@ use crate::{
 };
 use clap::{arg, ArgMatches};
 use serde_json::Value;
-use std::borrow::Cow;
+
 use std::collections::HashSet;
 use std::{
     io::{BufRead, BufReader, Read, Write},
@@ -73,11 +73,11 @@ impl Command for FilterTagDoc {
             //.expect("Value of 'DESTINATION' is required.")
             .into();
         let include: HashSet<String> = match matches.values_of("include") {
-            Some(m) => m.map(|x| String::from(x)).collect(),
+            Some(m) => m.map(String::from).collect(),
             None => HashSet::new(),
         };
         let exclude: HashSet<String> = match matches.values_of("exclude") {
-            Some(m) => m.map(|x| String::from(x)).collect(),
+            Some(m) => m.map(String::from).collect(),
             None => HashSet::new(),
         };
 

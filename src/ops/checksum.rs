@@ -129,7 +129,7 @@ pub trait Checksum {
 #[cfg(test)]
 mod tests {
     use sha2::Digest;
-    use std::ffi::OsStr;
+    
     use std::fs::File;
     use std::io::Write;
     use std::path::PathBuf;
@@ -196,12 +196,12 @@ hash_for_de.txt de.txt
         let mut f = File::create(&lang_corpus)?;
         f.write(text.as_bytes())?;
 
-        DummyChecksum::get_write_hashes(&lang.path())?;
+        DummyChecksum::get_write_hashes(lang.path())?;
 
         let checksum_file = lang.path().join("checksum.sha256");
         let checksums = std::fs::read_to_string(&checksum_file)?;
 
-        let mut x = checksums.split(" ").take(2);
+        let mut x = checksums.split(' ').take(2);
         let (checksum, filename) = (x.next(), x.next());
 
         let mut hasher = Sha256::new();
@@ -281,7 +281,7 @@ hash_for_de.txt de.txt
         }
 
         let corpus_path = corpus_dir.path();
-        DummyChecksum::checksum_folder(&corpus_path, 1)?;
+        DummyChecksum::checksum_folder(corpus_path, 1)?;
 
         for dir in std::fs::read_dir(&corpus_path)? {
             let dir = dir?;
@@ -298,11 +298,7 @@ hash_for_de.txt de.txt
                     Some("jsonl") => {
                         let hash = DummyChecksum::get_hash_path(&current_path, &mut hasher)?;
                         let filename = current_path.clone();
-                        let filename = if let Some(f) = filename.file_name() {
-                            Some(f.to_owned())
-                        } else {
-                            None
-                        };
+                        let filename = filename.file_name().map(|f| f.to_owned());
 
                         let filename = filename.unwrap().into_string();
                         hashes.push((filename.unwrap(), hash));
@@ -310,12 +306,12 @@ hash_for_de.txt de.txt
                     Some("sha256") => {
                         let checksums = std::fs::read_to_string(current_path)?;
                         let parts: Vec<String> = checksums
-                            .split(" ")
+                            .split(' ')
                             .take(2)
                             .map(|x| x.to_string())
                             .collect();
                         let hash = parts[0].clone();
-                        let filename = parts[1].clone().replace("\n", "");
+                        let filename = parts[1].clone().replace('\n', "");
                         hashes_from_files.push((filename, hash));
                     }
                     _ => (),
