@@ -129,7 +129,7 @@ pub trait Checksum {
 #[cfg(test)]
 mod tests {
     use sha2::Digest;
-    
+
     use std::fs::File;
     use std::io::Write;
     use std::path::PathBuf;
