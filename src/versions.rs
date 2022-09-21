@@ -1,4 +1,8 @@
-//! Version trait
+//! Version trait.
+//!
+//! Should be implemented by corpus versions.
+
+use std::fmt::Display;
 pub(crate) trait Schema {
     fn version() -> Version;
 }
@@ -16,6 +20,19 @@ impl Version {
             major,
             minor,
             patch,
+        }
+    }
+}
+
+impl Display for Version {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // TODO: replace by match?
+        if self.minor == 0 {
+            write!(f, "v{}", self.major)
+        } else if self.patch == 0 {
+            write!(f, "v{}.{}", self.major, self.minor)
+        } else {
+            write!(f, "v{}.{}.{}", self.major, self.minor, self.patch)
         }
     }
 }

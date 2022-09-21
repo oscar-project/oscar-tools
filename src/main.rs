@@ -4,26 +4,23 @@ extern crate log;
 
 mod cli;
 mod error;
-mod extract_clean;
 mod impls;
 mod lang_codes;
 mod ops;
-mod split_latest;
 mod versions;
 
-use cli::OscarTools;
-use cli::Runnable;
 use env_logger::Env;
-use structopt::StructOpt;
 
+#[cfg(not(tarpaulin_include))]
 fn main() -> Result<(), error::Error> {
+    use cli::build_app;
+
+    use crate::cli::run;
+
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
-    // get options from args
-    let opt = OscarTools::from_args();
-
-    // run command
-    opt.run()?;
-
+    let app = build_app();
+    let matches = app.get_matches();
+    run(matches)?;
     Ok(())
 }

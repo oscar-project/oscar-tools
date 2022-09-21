@@ -71,7 +71,7 @@ impl SplitWriter {
             next_filename.set_file_name(file_stem);
             next_filename.set_extension(extension);
 
-            println!("{:?}", next_filename);
+            debug!("next filename: {:?}", next_filename);
 
             // increase file count
             self.nb_files += 1;
@@ -86,7 +86,9 @@ impl SplitWriter {
     pub fn rotate_file(&mut self) -> std::io::Result<()> {
         if self.nb_files == 1 {
             // moving foo.bar to foo_part_1.bar
-            let new_filename = Self::format_filename(&self.dst, 1).unwrap();
+            debug!("rotating {:?}", self.dst);
+            let new_filename = Self::format_filename(&self.dst, 1)
+                .expect("destination is not a file or has no extension. {}");
 
             // early return if filename exists
             if new_filename.exists() {
@@ -102,7 +104,7 @@ impl SplitWriter {
             }
         }
 
-        let filename = self.next_filename().unwrap();
+        let filename = self.next_filename().expect("could not get next filename");
 
         if filename.exists() {
             Err(std::io::Error::new(
@@ -180,6 +182,16 @@ pub trait Split {
 
         let files = std::fs::read_dir(src)?;
 
+        if !dst.exists() {
+            debug!("{:?} does not exist, creating.", dst);
+            std::fs::create_dir(dst)?;
+        }
+
+        if dst.read_dir()?.count() != 0 {
+            error!("Destination directory is not empty!");
+            return Err(std::io::Error::new(ErrorKind::AlreadyExists, format!("{:?}", dst)).into());
+        }
+
         // filter out folders and errors (printing then discarding them)
         let files = files
             .filter_map(|p| match p {
@@ -214,9 +226,9 @@ pub trait Split {
                     let file_name = file.file_name().unwrap();
                     dest_file.push(file_name);
 
-                    debug!("Splitting {:?} in {:?}", file, dest_folder);
+                    info!("Splitting {:?} in {:?}", file, dest_folder);
                     Self::split_file(&file, &dest_file, split_size)?;
-                    debug!("Done      {:?} in {:?}", file, dest_folder);
+                    info!("Done      {:?} in {:?}", file, dest_folder);
                 };
                 Ok(())
             })
