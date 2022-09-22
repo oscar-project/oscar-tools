@@ -10,6 +10,8 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::error::Error;
 
+const COMPRESSED_FILE_EXTS: [&'static str; 2] = ["gz", "zst"];
+
 pub trait Compress {
     /// Compress a file located at `src` to `dst`.
     /// If `del_src` is set to `true`, removes the file at `src` upon compression completion.
@@ -33,14 +35,15 @@ pub trait Compress {
         if let Some(ext) = dst.extension() {
             //TODO remove unwrapping here
             let extension = String::from(ext.to_str().unwrap());
-            if extension == ".gz" || extension == ".zst" {
+            if COMPRESSED_FILE_EXTS.contains(&extension.as_str()) {
                 warn!("{:?} is already compressed! Skipping.", dst);
                 return Ok(());
             }
 
             match compression {
-                "gzip" => dst.set_extension(extension + "gz"),
-                "zstd" => dst.set_extension(extension + "zst"),
+                "gzip" => dst.set_extension(extension + ".gz"),
+                #[cfg(feature = "zstd")]
+                "zstd" => dst.set_extension(extension + ".zst"),
                 _ => {
                     return Err(Error::Custom(format!(
                         "Compression {compression} not supported."
@@ -48,8 +51,11 @@ pub trait Compress {
                 }
             };
         } else {
-            warn!("File {0:?} has no extension! Fallback to {0:?}.txt.gz", dst);
-            let extension = "txt.gz";
+            warn!(
+                "File {:?} has no extension! Fallback to {0:?}.txt.{compression}",
+                dst
+            );
+            let extension = format!("txt.{compression}");
             dst.set_extension(extension);
         }
 
