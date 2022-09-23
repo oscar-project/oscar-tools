@@ -211,11 +211,15 @@ fn compress_zstd<T: Read>(dest_file: &mut impl Write, r: T) -> Result<(), Error>
 
 #[cfg(test)]
 mod test {
-    use std::{fs::File, io::Read, io::Write};
+    use std::{
+        fs::File,
+        io::Write,
+        io::{Cursor, Read},
+    };
 
     use tempfile::tempdir;
 
-    use crate::ops::Compress;
+    use crate::ops::{compress::compress_zstd, Compress};
 
     use super::compress;
 
@@ -232,6 +236,18 @@ mod test {
         assert_eq!(content, decompressed);
     }
 
+    #[test]
+    fn test_compress_ztd() {
+        // create content and compress
+        let content = "foo";
+        let mut compressed = Vec::new();
+        compress(&mut compressed, content.as_bytes(), "zstd").unwrap();
+
+        let compressed_cursor = Cursor::new(compressed);
+        let decompressed = zstd::decode_all(compressed_cursor).unwrap();
+        let decompressed = String::from_utf8(decompressed).unwrap();
+        assert_eq!(content, decompressed);
+    }
     #[test]
     fn test_dst_not_directory() {
         struct Dummy;
