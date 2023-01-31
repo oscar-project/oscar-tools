@@ -1,4 +1,5 @@
 //! Errors
+
 #[derive(Debug)]
 #[cfg(not(tarpaulin_include))]
 pub enum Error {
