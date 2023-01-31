@@ -1,12 +1,7 @@
 /*! The goal is to filter the documents based on the annotation ["short s", "header"]
  * take a document
  */
-use std::{
-    borrow::Cow,
-    collections::HashSet,
-    fs::File,
-    io::{BufWriter},
-};
+use std::{borrow::Cow, collections::HashSet, fs::File, io::BufWriter};
 
 use oscar_io::oscar_doc::{Document, SplitFolderReader, Writer};
 
@@ -195,7 +190,6 @@ mod test {
         lang::Lang,
         oscar_doc::{Document, Metadata, Reader, Writer},
     };
-    
 
     use super::FilterTagDoc;
 
