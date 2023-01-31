@@ -3,8 +3,8 @@
 
 use crate::cli::Command;
 use crate::error::{self, Error};
-use crate::impls::oscar_txt::sampling::indexed_reader::IndexedReader;
-use crate::impls::oscar_txt::sampling::indexer::Indexer;
+use crate::impls::v1::sampling::indexed_reader::IndexedReader;
+use crate::impls::v1::sampling::indexer::Indexer;
 use crate::ops::SampleText;
 use crate::ops::SamplingKind;
 use clap::arg;
@@ -177,7 +177,7 @@ mod tests {
     use std::io::Write;
     use tempfile::NamedTempFile;
 
-    use crate::impls::oscar_txt::SampleDoc;
+    use crate::impls::v1::SampleDoc;
 
     #[test]
     fn test_index() {

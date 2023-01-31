@@ -3,8 +3,9 @@
 This module contains implementations for operations ([crate::ops]) on OSCAR Schema specifications.
 
 !*/
-mod oscar_doc;
-mod oscar_txt;
+//mod v2;
+//mod v1;
+mod v3;
 
-pub(crate) use oscar_doc::OscarDoc;
-pub(crate) use oscar_txt::OscarTxt;
+//pub(crate) use v2::OscarDoc;
+//pub(crate) use v1::OscarTxt;

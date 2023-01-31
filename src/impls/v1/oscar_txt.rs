@@ -4,7 +4,7 @@ use clap::ArgMatches;
 use crate::{
     cli::Command,
     error::Error,
-    impls::oscar_txt::SampleDoc,
+    impls::v1::SampleDoc,
     versions::{Schema, Version},
 };
 
