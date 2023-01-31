@@ -2,7 +2,7 @@
 authors = ["Pedro J. Ortiz <pedro@pjortiz.com>"]
 edition = "2021"
 name = "oscar-tools"
-version = "0.1.0"
+version = "0.2.0"
 
 [features]
 zstd = ["dep:zstd"]
