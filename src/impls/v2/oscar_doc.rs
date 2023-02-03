@@ -11,19 +11,19 @@ use crate::{
 use clap::{arg, ArgMatches};
 use serde_json::Value;
 
+use oscar_io::oscar_doc::{Document, Reader, Writer};
 use std::collections::HashSet;
 use std::{
     io::{BufRead, BufReader, Read, Write},
     path::PathBuf,
 };
-use oscar_io::oscar_doc::
 
 use super::filter_tags::FilterTagDoc;
 
 /// OSCAR Schema v2.
 ///
 /// Document-oriented, one document per line, formatted in JSONLines.
-//#[derive(clap::StructOpt)]
+#[derive(clap::StructOpt)]
 pub struct OscarDoc;
 
 impl Command for OscarDoc {

@@ -183,13 +183,14 @@ mod test {
     use std::{
         collections::{HashMap, HashSet},
         io::Cursor,
+        str::FromStr,
     };
 
     use oscar_io::{
         common::Identification,
-        lang::Lang,
         oscar_doc::{Document, Metadata, Reader, Writer},
     };
+    use oxilangtag::LanguageTag;
 
     use super::FilterTagDoc;
 
@@ -444,6 +445,7 @@ mod test {
             "to start\n with",
             "to start\n with",
         ];
+        let lang_tag = LanguageTag::parse("en").expect("unable to parse language tag");
         let metadata = [Some(vec!["tiny"]), None, None, Some(vec!["tiny", "header"])];
         let documents: Vec<_> = contents
             .into_iter()
@@ -454,7 +456,7 @@ mod test {
                 Ok(Document::new(
                     content.to_string(),
                     HashMap::new(),
-                    Metadata::new(&Identification::new(Lang::En, 1.0), &metadata, &[]),
+                    Metadata::new(&Identification::new(lang_tag.into(), 1.0), &metadata, &[]),
                 ))
             })
             .collect();
@@ -486,7 +488,6 @@ mod test {
             }
         }
     }
-
     #[test]
     fn test_filter_write_overlap() {
         // the idea is to test the case where there is an overlap between include and exclude.
@@ -496,6 +497,7 @@ mod test {
             "to start\n with",
             "to start\n with",
         ];
+        let lang_tag = LanguageTag::parse("en").expect("unable to parse language tag");
         let metadata = [Some(vec!["tiny"]), None, None, Some(vec!["tiny", "header"])];
         let documents: Vec<_> = contents
             .into_iter()
@@ -506,7 +508,7 @@ mod test {
                 Ok(Document::new(
                     content.to_string(),
                     HashMap::new(),
-                    Metadata::new(&Identification::new(Lang::En, 1.0), &metadata, &[]),
+                    Metadata::new(&Identification::new(lang_tag.into(), 1.0), &metadata, &[]),
                 ))
             })
             .collect();
@@ -528,6 +530,7 @@ mod test {
         )
         .is_err());
     }
+
     #[test]
     fn test_filter_write_clean() {
         let contents = [
@@ -536,6 +539,7 @@ mod test {
             "to start\n with",
             "to start\n with",
         ];
+        let lang_tag = LanguageTag::parse("en").expect("unable to parse language tag");
         let metadata = [Some(vec!["tiny"]), None, None, Some(vec!["tiny", "header"])];
         let documents: Vec<_> = contents
             .into_iter()
@@ -546,7 +550,7 @@ mod test {
                 Ok(Document::new(
                     content.to_string(),
                     HashMap::new(),
-                    Metadata::new(&Identification::new(Lang::En, 1.0), &metadata, &[]),
+                    Metadata::new(&Identification::new(lang_tag.into(), 1.0), &metadata, &[]),
                 ))
             })
             .collect();
