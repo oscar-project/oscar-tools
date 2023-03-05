@@ -7,6 +7,7 @@ use std::{
 
 use flate2::{write::GzEncoder, Compression};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use walkdir::WalkDir;
 
 use crate::error::Error;
 
@@ -83,43 +84,43 @@ pub trait Compress {
     /// If `del_src` is set to `true`, removes the compressed files at `src` upon compression completion.
     /// The compression is only done at depth=1.
     /// `src` has to exist and be a file, and `dst` should not exist.
+    // fn compress_folder(
+    //     src: &Path,
+    //     dst: &Path,
+    //     del_src: bool,
+    //     compression: &str,
+    // ) -> Result<(), Error> {
+    //     //TODO: read dir
+    //     // if file, error+ignore
+    //     // if dir, read dir
+    //     //     if file, compress
+    //     //     if dir, error+ignore
+    //     // There should be an easier way to do that.
+
+    //     let files_to_compress: Result<Vec<_>, std::io::Error> = std::fs::read_dir(src)?.collect();
+    //     let files_to_compress: Vec<PathBuf> =
+    //         files_to_compress?.into_iter().map(|x| x.path()).collect();
+    //     let files_to_compress = files_to_compress.into_par_iter();
+
+    //     if !dst.exists() {
+    //         debug!("Creating {:?}", dst);
+    //         std::fs::create_dir(&dst)?;
+    //     }
+    //     // construct vector of errors
+    //     let errors: Vec<Error> = files_to_compress
+    //         .filter_map(|filepath| Self::compress_file(&filepath, dst, del_src, compression).err())
+    //         .collect();
+
+    //     if !errors.is_empty() {
+    //         for error in &errors {
+    //             error!("{:?}", error);
+    //         }
+    //     };
+
+    //     Ok(())
+    // }
+
     fn compress_folder(
-        src: &Path,
-        dst: &Path,
-        del_src: bool,
-        compression: &str,
-    ) -> Result<(), Error> {
-        //TODO: read dir
-        // if file, error+ignore
-        // if dir, read dir
-        //     if file, compress
-        //     if dir, error+ignore
-        // There should be an easier way to do that.
-
-        let files_to_compress: Result<Vec<_>, std::io::Error> = std::fs::read_dir(src)?.collect();
-        let files_to_compress: Vec<PathBuf> =
-            files_to_compress?.into_iter().map(|x| x.path()).collect();
-        let files_to_compress = files_to_compress.into_par_iter();
-
-        if !dst.exists() {
-            debug!("Creating {:?}", dst);
-            std::fs::create_dir(&dst)?;
-        }
-        // construct vector of errors
-        let errors: Vec<Error> = files_to_compress
-            .filter_map(|filepath| Self::compress_file(&filepath, dst, del_src, compression).err())
-            .collect();
-
-        if !errors.is_empty() {
-            for error in &errors {
-                error!("{:?}", error);
-            }
-        };
-
-        Ok(())
-    }
-
-    fn compress_corpus(
         src: &Path,
         dst: &Path,
         del_src: bool,
@@ -136,6 +137,17 @@ pub trait Compress {
         if !dst.exists() {
             std::fs::create_dir(dst)?;
         }
+
+        let files_to_compress: Result<Vec<_>, std::io::Error> = WalkDir::new(src)
+        .into_iter()
+        .filter_map(Result::ok)
+        .map(|e| {
+            if e.file_type().is_dir() {
+                e.path().to_path_buf()
+            }
+        })
+        .filter(|e| !e.file_type().is_dir())
+        .collect();
 
         let language_directories: Result<Vec<_>, std::io::Error> =
             std::fs::read_dir(src)?.collect();
