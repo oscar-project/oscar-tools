@@ -54,7 +54,7 @@ Only provide a folder (resp. file) as a destination if a folder (resp. file) has
         if src.is_file() {
             CompressDoc::compress_file(&src, &dst, del_src, compression)?;
         } else if src.is_dir() {
-            CompressDoc::compress_corpus(&src, &dst, del_src, compression, num_threads)?;
+            CompressDoc::compress_folder(&src, &dst, del_src, compression, num_threads)?;
         } else {
             return Err(
                 std::io::Error::new(std::io::ErrorKind::NotFound, format!("{:?}", src)).into(),

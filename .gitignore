@@ -9,6 +9,7 @@
 test-orig/*
 test-dedup/*
 test-split/*
+test-compressed/*
 
 # exception to the rule
 !test-orig/.gitkeep

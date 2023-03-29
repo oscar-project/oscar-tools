@@ -1,6 +1,6 @@
 /*! Compression operation, using gzip in default implementatino !*/
 use std::{
-    fs::File,
+    fs::{File, create_dir},
     io::{BufRead, BufReader, Read, Write},
     path::{Path, PathBuf},
 };
@@ -138,35 +138,30 @@ pub trait Compress {
             std::fs::create_dir(dst)?;
         }
 
-        let files_to_compress: Result<Vec<_>, std::io::Error> = WalkDir::new(src)
+        let files_paths: Vec<walkdir::DirEntry> = WalkDir::new(src)
         .into_iter()
         .filter_map(Result::ok)
-        .map(|e| {
-            if e.file_type().is_dir() {
-                e.path().to_path_buf()
-            }
-        })
-        .filter(|e| !e.file_type().is_dir())
+        .filter(|e| e.file_type().is_file())
         .collect();
 
-        let language_directories: Result<Vec<_>, std::io::Error> =
-            std::fs::read_dir(src)?.collect();
-        let language_directories: Vec<PathBuf> = language_directories?
-            .into_iter()
-            .map(|x| x.path())
-            .collect();
-        let languages_to_compress = language_directories.into_par_iter();
-        let results: Vec<Result<_, Error>> = languages_to_compress
-            .map(|language_dir| {
-                let file_stem = language_dir.file_name().ok_or_else(|| {
-                    Error::Custom(format!("Bad file name {:?}", language_dir.file_name()))
-                })?;
-                let dst_folder = dst.clone().join(file_stem);
-                debug!("compressing {:?} into{:?}", &language_dir, &dst_folder);
+        let folders_to_create = WalkDir::new(src)
+        .into_iter()
+        .filter_map(Result::ok)
+        .filter(|e| e.file_type().is_dir());
 
-                // transform source + language
-                // into dest + language
-                Self::compress_folder(&language_dir, &dst_folder, del_src, compression)
+        for folder in folders_to_create {
+            let folder_path = folder.into_path();
+            if !folder_path.exists() {
+                create_dir(dst.join(folder_path.strip_prefix(src).unwrap()))?;
+            }
+        }
+
+        let files_to_compress = files_paths.into_par_iter();
+        let results: Vec<Result<_, Error>> = files_to_compress
+            .map(|file_entry| {
+                let file_path = file_entry.into_path();
+                let dst_file_path = dst.join(file_path.strip_prefix(src).unwrap().parent().unwrap());
+                Self::compress_file(&file_path, &dst_file_path, del_src, compression)
             })
             .collect();
         for result in results.into_iter().filter(|r| r.is_err()) {
