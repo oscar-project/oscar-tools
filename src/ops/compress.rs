@@ -80,46 +80,6 @@ pub trait Compress {
         Ok(())
     }
 
-    /// Compress files in provided folder.
-    /// If `del_src` is set to `true`, removes the compressed files at `src` upon compression completion.
-    /// The compression is only done at depth=1.
-    /// `src` has to exist and be a file, and `dst` should not exist.
-    // fn compress_folder(
-    //     src: &Path,
-    //     dst: &Path,
-    //     del_src: bool,
-    //     compression: &str,
-    // ) -> Result<(), Error> {
-    //     //TODO: read dir
-    //     // if file, error+ignore
-    //     // if dir, read dir
-    //     //     if file, compress
-    //     //     if dir, error+ignore
-    //     // There should be an easier way to do that.
-
-    //     let files_to_compress: Result<Vec<_>, std::io::Error> = std::fs::read_dir(src)?.collect();
-    //     let files_to_compress: Vec<PathBuf> =
-    //         files_to_compress?.into_iter().map(|x| x.path()).collect();
-    //     let files_to_compress = files_to_compress.into_par_iter();
-
-    //     if !dst.exists() {
-    //         debug!("Creating {:?}", dst);
-    //         std::fs::create_dir(&dst)?;
-    //     }
-    //     // construct vector of errors
-    //     let errors: Vec<Error> = files_to_compress
-    //         .filter_map(|filepath| Self::compress_file(&filepath, dst, del_src, compression).err())
-    //         .collect();
-
-    //     if !errors.is_empty() {
-    //         for error in &errors {
-    //             error!("{:?}", error);
-    //         }
-    //     };
-
-    //     Ok(())
-    // }
-
     fn compress_folder(
         src: &Path,
         dst: &Path,
@@ -150,9 +110,9 @@ pub trait Compress {
         .filter(|e| e.file_type().is_dir());
 
         for folder in folders_to_create {
-            let folder_path = folder.into_path();
+            let folder_path = dst.join(folder.into_path().strip_prefix(src).unwrap());
             if !folder_path.exists() {
-                create_dir(dst.join(folder_path.strip_prefix(src).unwrap()))?;
+                create_dir(folder_path)?;
             }
         }
 
