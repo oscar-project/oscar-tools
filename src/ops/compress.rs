@@ -110,7 +110,12 @@ pub trait Compress {
         .filter(|e| e.file_type().is_dir());
 
         for folder in folders_to_create {
-            let folder_path = dst.join(folder.into_path().strip_prefix(src).unwrap());
+            let folder_path = match folder.into_path().strip_prefix(src) {
+                Ok(p) => dst.join(p),
+                Err(e) => {
+                    return Err(Error::StripPrefixError(e));
+                }
+            };
             if !folder_path.exists() {
                 create_dir(folder_path)?;
             }
@@ -120,7 +125,19 @@ pub trait Compress {
         let results: Vec<Result<_, Error>> = files_to_compress
             .map(|file_entry| {
                 let file_path = file_entry.into_path();
-                let dst_file_path = dst.join(file_path.strip_prefix(src).unwrap().parent().unwrap());
+                let dst_file_path = match file_path.strip_prefix(src) {
+                    Ok(p) => match p.parent() {
+                        Some(t) => dst.join(t),
+                        None => {
+                            return Err(Error::Custom(format!(
+                                "No Parent for {:?}", p
+                            )));
+                        }
+                    },
+                    Err(e) => {
+                        return Err(Error::StripPrefixError(e));
+                    }
+                };
                 Self::compress_file(&file_path, &dst_file_path, del_src, compression)
             })
             .collect();
