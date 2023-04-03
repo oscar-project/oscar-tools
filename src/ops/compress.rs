@@ -79,7 +79,10 @@ pub trait Compress {
 
         Ok(())
     }
-
+    
+    /// Recursively compresses files in provided folder.
+    /// If `del_src` is set to `true`, removes the compressed files at `src` upon compression completion.
+    /// `src` has to exist and be a folder
     fn compress_folder(
         src: &Path,
         dst: &Path,
