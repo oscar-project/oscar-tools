@@ -1,6 +1,6 @@
 /*! Compression operation, using gzip in default implementatino !*/
 use std::{
-    fs::{File, create_dir},
+    fs::{create_dir, File},
     io::{BufRead, BufReader, Read, Write},
     path::{Path, PathBuf},
 };
@@ -99,15 +99,15 @@ pub trait Compress {
         }
 
         let files_paths: Vec<walkdir::DirEntry> = WalkDir::new(src)
-        .into_iter()
-        .filter_map(Result::ok)
-        .filter(|e| e.file_type().is_file())
-        .collect();
+            .into_iter()
+            .filter_map(Result::ok)
+            .filter(|e| e.file_type().is_file())
+            .collect();
 
         let folders_to_create = WalkDir::new(src)
-        .into_iter()
-        .filter_map(Result::ok)
-        .filter(|e| e.file_type().is_dir());
+            .into_iter()
+            .filter_map(Result::ok)
+            .filter(|e| e.file_type().is_dir());
 
         for folder in folders_to_create {
             let folder_path = match folder.into_path().strip_prefix(src) {
@@ -129,9 +129,7 @@ pub trait Compress {
                     Ok(p) => match p.parent() {
                         Some(t) => dst.join(t),
                         None => {
-                            return Err(Error::Custom(format!(
-                                "No Parent for {:?}", p
-                            )));
+                            return Err(Error::Custom(format!("No Parent for {:?}", p)));
                         }
                     },
                     Err(e) => {

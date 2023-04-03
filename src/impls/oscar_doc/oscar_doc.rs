@@ -6,7 +6,7 @@ use crate::ops::FilterTags;
 use crate::{
     cli::Command,
     error::Error,
-    ops::{Checksum, Compress, ExtractText, Split},
+    ops::{Checksum, ExtractText, Split},
     versions::{Schema, Version},
 };
 use clap::{arg, ArgMatches};
