@@ -6,7 +6,7 @@ use crate::ops::FilterTags;
 use crate::{
     cli::Command,
     error::Error,
-    ops::{Checksum, Compress, ExtractText, Split},
+    ops::{Checksum, ExtractText, Split},
     versions::{Schema, Version},
 };
 use clap::{arg, ArgMatches};
@@ -413,7 +413,7 @@ quux
 
         // create destination path and compress
         let tmpdst = tempfile::tempdir().unwrap();
-        CompressDoc::compress_folder(tmpdir.path(), tmpdst.path(), false, "gzip").unwrap();
+        CompressDoc::compress_folder(tmpdir.path(), tmpdst.path(), false, "gzip", 1).unwrap();
 
         println!(
             "{:?}",
