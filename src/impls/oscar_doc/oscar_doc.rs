@@ -413,7 +413,7 @@ quux
 
         // create destination path and compress
         let tmpdst = tempfile::tempdir().unwrap();
-        CompressDoc::compress_folder(tmpdir.path(), tmpdst.path(), false, "gzip", 0).unwrap();
+        CompressDoc::compress_folder(tmpdir.path(), tmpdst.path(), false, "gzip", 1).unwrap();
 
         println!(
             "{:?}",
