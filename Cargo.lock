@@ -730,7 +730,7 @@ dependencies = [
 
 [[package]]
 name = "oscar-tools"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "clap 3.0.14",
  "env_logger",
@@ -1041,9 +1041,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.81"
+version = "1.0.96"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b7ce2b32a1aed03c558dc61a5cd328f15aff2dbc17daad8fb8af04d2100e15c"
+checksum = "057d394a50403bcac12672b2b18fb387ab6d289d957dab67dd201875391e52f1"
 dependencies = [
  "itoa",
  "ryu",
