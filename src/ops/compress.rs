@@ -219,7 +219,9 @@ mod test {
 
     use tempfile::tempdir;
 
-    use crate::ops::{compress::compress_zstd, Compress};
+    #[cfg(feature = "zstd")]
+    use crate::ops::compress::compress_zstd;
+    use crate::ops::Compress;
 
     use super::compress;
 
@@ -237,6 +239,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(feature = "zstd")]
     fn test_compress_ztd() {
         // create content and compress
         let content = "foo";
