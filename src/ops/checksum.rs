@@ -7,7 +7,7 @@ use std::{
 };
 
 use rayon::{iter::ParallelIterator, prelude::ParallelBridge};
-use sha2::{Digest, Sha256};
+use sha2::{Digest, Sha384};
 
 use crate::error::Error;
 
@@ -16,7 +16,7 @@ pub trait Checksum {
     /// As such, it shouldn't make the program go OOM with big files, but it has not been tested.
     /// Can return an error if there has been problems regarding IO.
     #[inline]
-    fn get_hash<R>(reader: &mut R, hasher: &mut Sha256) -> Result<String, Error>
+    fn get_hash<R>(reader: &mut R, hasher: &mut Sha384) -> Result<String, Error>
     where
         R: std::io::Read,
     {
@@ -27,7 +27,7 @@ pub trait Checksum {
 
     /// corpus/lang/lang_part_x.jsonl
     #[inline]
-    fn get_hash_path(src: &Path, hasher: &mut Sha256) -> Result<String, Error> {
+    fn get_hash_path(src: &Path, hasher: &mut Sha384) -> Result<String, Error> {
         let mut f = File::open(src)?;
         Self::get_hash(&mut f, hasher)
     }
@@ -83,7 +83,7 @@ pub trait Checksum {
     fn get_write_hashes(src: &Path) -> Result<(), Error> {
         debug!("Getting hashes for {:?}", src);
         let hashes = Self::checksum_lang(src)?;
-        let checksum_filepath = src.to_path_buf().join("checksum.sha256");
+        let checksum_filepath = src.to_path_buf().join("checksum.sha384");
         debug!("writing checksums in {:?}", checksum_filepath);
         let mut checksum_file = File::create(&checksum_filepath)?;
         Self::write_checksum(&mut checksum_file, hashes)?;
@@ -114,7 +114,7 @@ pub trait Checksum {
     }
     /// this should operate on lang-level
     fn checksum_lang(src: &Path) -> Result<Vec<(PathBuf, String)>, Error> {
-        let mut hasher = Sha256::new();
+        let mut hasher = Sha384::new();
         let mut hashes = Vec::new();
         for filepath in std::fs::read_dir(src)? {
             let filepath = filepath?.path();
@@ -135,7 +135,7 @@ mod tests {
     use std::path::PathBuf;
     use tempfile::TempDir;
 
-    use sha2::Sha256;
+    use sha2::Sha384;
 
     use crate::error::Error;
     use crate::ops::Checksum;
@@ -198,13 +198,13 @@ hash_for_de.txt de.txt
 
         DummyChecksum::get_write_hashes(lang.path())?;
 
-        let checksum_file = lang.path().join("checksum.sha256");
+        let checksum_file = lang.path().join("checksum.sha384");
         let checksums = std::fs::read_to_string(&checksum_file)?;
 
         let mut x = checksums.split(' ').take(2);
         let (checksum, filename) = (x.next(), x.next());
 
-        let mut hasher = Sha256::new();
+        let mut hasher = Sha384::new();
         hasher.update(text.as_bytes());
         let expected_checksum = format!("{:x}", hasher.finalize_reset());
         let expected_filename = "fr.txt\n";
@@ -243,7 +243,7 @@ hash_for_de.txt de.txt
             // corpora are not split, so there's only one file (hence [0]). We then take the hash (hence .1)
             let hash = &DummyChecksum::checksum_lang(&corpus_dir.path().join(lang))?[0].1;
             let expected = {
-                let mut hasher = Sha256::new();
+                let mut hasher = Sha384::new();
                 let mut reader = content.as_bytes();
                 DummyChecksum::get_hash(&mut reader, &mut hasher)?
             };
@@ -287,7 +287,7 @@ hash_for_de.txt de.txt
             let dir = dir?;
             let mut hashes: Vec<(_, _)> = Vec::new();
             let mut hashes_from_files: Vec<(_, _)> = Vec::new();
-            let mut hasher = Sha256::new();
+            let mut hasher = Sha384::new();
             for language_dir in std::fs::read_dir(dir.path())? {
                 let language_dir = language_dir?;
 
@@ -303,7 +303,7 @@ hash_for_de.txt de.txt
                         let filename = filename.unwrap().into_string();
                         hashes.push((filename.unwrap(), hash));
                     }
-                    Some("sha256") => {
+                    Some("sha384") => {
                         let checksums = std::fs::read_to_string(current_path)?;
                         let parts: Vec<String> = checksums
                             .split(' ')
