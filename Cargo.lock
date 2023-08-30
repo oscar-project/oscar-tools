@@ -863,7 +863,7 @@ dependencies = [
  "itertools",
  "log",
  "oscar-io",
- "rand 0.7.3",
+ "rand 0.8.5",
  "rayon",
  "runiq-lib",
  "serde_json",
