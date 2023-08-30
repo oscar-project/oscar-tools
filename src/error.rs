@@ -9,6 +9,7 @@ pub enum Error {
     MissingContent(serde_json::Value),
     MalformedContent(serde_json::Value),
     OscarIo(oscar_io::error::Error),
+    StripPrefixError(std::path::StripPrefixError),
     Custom(String),
 }
 

@@ -1,12 +1,13 @@
 /*! Compression operation, using gzip in default implementatino !*/
 use std::{
-    fs::File,
+    fs::{create_dir, File},
     io::{BufRead, BufReader, Read, Write},
     path::{Path, PathBuf},
 };
 
 use flate2::{write::GzEncoder, Compression};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use walkdir::WalkDir;
 
 use crate::error::Error;
 
@@ -78,48 +79,11 @@ pub trait Compress {
 
         Ok(())
     }
-
-    /// Compress files in provided folder.
+    
+    /// Recursively compresses files in provided folder.
     /// If `del_src` is set to `true`, removes the compressed files at `src` upon compression completion.
-    /// The compression is only done at depth=1.
-    /// `src` has to exist and be a file, and `dst` should not exist.
+    /// `src` has to exist and be a folder
     fn compress_folder(
-        src: &Path,
-        dst: &Path,
-        del_src: bool,
-        compression: &str,
-    ) -> Result<(), Error> {
-        //TODO: read dir
-        // if file, error+ignore
-        // if dir, read dir
-        //     if file, compress
-        //     if dir, error+ignore
-        // There should be an easier way to do that.
-
-        let files_to_compress: Result<Vec<_>, std::io::Error> = std::fs::read_dir(src)?.collect();
-        let files_to_compress: Vec<PathBuf> =
-            files_to_compress?.into_iter().map(|x| x.path()).collect();
-        let files_to_compress = files_to_compress.into_par_iter();
-
-        if !dst.exists() {
-            debug!("Creating {:?}", dst);
-            std::fs::create_dir(&dst)?;
-        }
-        // construct vector of errors
-        let errors: Vec<Error> = files_to_compress
-            .filter_map(|filepath| Self::compress_file(&filepath, dst, del_src, compression).err())
-            .collect();
-
-        if !errors.is_empty() {
-            for error in &errors {
-                error!("{:?}", error);
-            }
-        };
-
-        Ok(())
-    }
-
-    fn compress_corpus(
         src: &Path,
         dst: &Path,
         del_src: bool,
@@ -137,24 +101,45 @@ pub trait Compress {
             std::fs::create_dir(dst)?;
         }
 
-        let language_directories: Result<Vec<_>, std::io::Error> =
-            std::fs::read_dir(src)?.collect();
-        let language_directories: Vec<PathBuf> = language_directories?
+        let files_paths: Vec<walkdir::DirEntry> = WalkDir::new(src)
             .into_iter()
-            .map(|x| x.path())
+            .filter_map(Result::ok)
+            .filter(|e| e.file_type().is_file())
             .collect();
-        let languages_to_compress = language_directories.into_par_iter();
-        let results: Vec<Result<_, Error>> = languages_to_compress
-            .map(|language_dir| {
-                let file_stem = language_dir.file_name().ok_or_else(|| {
-                    Error::Custom(format!("Bad file name {:?}", language_dir.file_name()))
-                })?;
-                let dst_folder = dst.clone().join(file_stem);
-                debug!("compressing {:?} into{:?}", &language_dir, &dst_folder);
 
-                // transform source + language
-                // into dest + language
-                Self::compress_folder(&language_dir, &dst_folder, del_src, compression)
+        let folders_to_create = WalkDir::new(src)
+            .into_iter()
+            .filter_map(Result::ok)
+            .filter(|e| e.file_type().is_dir());
+
+        for folder in folders_to_create {
+            let folder_path = match folder.into_path().strip_prefix(src) {
+                Ok(p) => dst.join(p),
+                Err(e) => {
+                    return Err(Error::StripPrefixError(e));
+                }
+            };
+            if !folder_path.exists() {
+                create_dir(folder_path)?;
+            }
+        }
+
+        let files_to_compress = files_paths.into_par_iter();
+        let results: Vec<Result<_, Error>> = files_to_compress
+            .map(|file_entry| {
+                let file_path = file_entry.into_path();
+                let dst_file_path = match file_path.strip_prefix(src) {
+                    Ok(p) => match p.parent() {
+                        Some(t) => dst.join(t),
+                        None => {
+                            return Err(Error::Custom(format!("No Parent for {:?}", p)));
+                        }
+                    },
+                    Err(e) => {
+                        return Err(Error::StripPrefixError(e));
+                    }
+                };
+                Self::compress_file(&file_path, &dst_file_path, del_src, compression)
             })
             .collect();
         for result in results.into_iter().filter(|r| r.is_err()) {
@@ -219,7 +204,9 @@ mod test {
 
     use tempfile::tempdir;
 
-    use crate::ops::{compress::compress_zstd, Compress};
+    #[cfg(feature = "zstd")]
+    use crate::ops::compress::compress_zstd;
+    use crate::ops::Compress;
 
     use super::compress;
 
@@ -237,6 +224,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(feature = "zstd")]
     fn test_compress_ztd() {
         // create content and compress
         let content = "foo";

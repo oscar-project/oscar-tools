@@ -1,8 +1,11 @@
 [package]
-authors = ["Pedro J. Ortiz <pedro@pjortiz.com>"]
+authors = ["Pedro J. Ortiz <pedro@pjortiz.com>", "Julien Abadji <aulien.jbadji@gmail.com>"]
 edition = "2021"
 name = "oscar-tools"
-version = "0.2.0"
+version = "0.3.0"
+repository = "https://github.com/oscar-project/oscar-tools"
+description = "Tools for processing OSCAR Corpora"
+license = "Apache-2.0"
 
 [features]
 zstd = ["dep:zstd"]
@@ -10,15 +13,16 @@ zstd = ["dep:zstd"]
 [dependencies]
 env_logger = "0.9.0"
 flate2 = "1.0.22"
-itertools = "*"
+itertools = "0.11.0"
 log = "0.4.14"
 oscar-io = "0.1.3"
-rand = "*"
+rand = "0.8.5"
 rayon = "1.5.1"
 runiq-lib = "1.2.2"
 serde_json = "1.0.78"
 sha2 = "0.10.1"
 zstd = {version="0.11.2", optional=true}
+walkdir = "2.3.3"
 
 [dependencies.clap]
 features = ["derive"]
@@ -30,4 +34,20 @@ tempfile = "3.3.0"
 
 [profile.release]
 debug = true
+
+# The profile that 'cargo dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
+
+# Config for 'cargo dist'
+[workspace.metadata.dist]
+# The preferred cargo-dist version to use in CI (Cargo.toml SemVer syntax)
+cargo-dist-version = "0.1.0"
+# CI backends to support (see 'cargo dist generate-ci')
+ci = ["github"]
+# The installers to generate for each app
+installers = []
+# Target platforms to build apps for (Rust target-triple syntax)
+targets = ["x86_64-unknown-linux-gnu", "x86_64-apple-darwin", "x86_64-pc-windows-msvc", "aarch64-apple-darwin"]
 
