@@ -855,7 +855,7 @@ dependencies = [
 
 [[package]]
 name = "oscar-tools"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "clap 3.2.25",
  "env_logger",
@@ -863,7 +863,7 @@ dependencies = [
  "itertools",
  "log",
  "oscar-io",
- "rand 0.8.5",
+ "rand 0.7.3",
  "rayon",
  "runiq-lib",
  "serde_json",

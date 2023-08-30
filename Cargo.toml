@@ -2,7 +2,7 @@
 authors = ["Pedro J. Ortiz <pedro@pjortiz.com>", "Julien Abadji <aulien.jbadji@gmail.com>"]
 edition = "2021"
 name = "oscar-tools"
-version = "0.2.0"
+version = "0.3.0"
 repository = "https://github.com/oscar-project/oscar-tools"
 description = "Tools for processing OSCAR Corpora"
 license = "Apache-2.0"
