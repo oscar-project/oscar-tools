@@ -22,7 +22,7 @@ path = "src/lib.rs"
 zstd = ["dep:zstd"]
 
 [dependencies]
-env_logger = "0.9.0"
+env_logger = "0.10.0"
 flate2 = "1.0.22"
 itertools = "0.11.0"
 log = "0.4.14"
