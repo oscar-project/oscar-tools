@@ -2,9 +2,9 @@ name: Rust
 
 on:
   push:
-    branches: [ main, dev ]
+    branches: [main, dev]
   pull_request:
-    branches: [ main, dev ]
+    branches: [main, dev]
 env:
   CARGO_TERM_COLOR: always
 
@@ -22,7 +22,10 @@ jobs:
 
       - name: Run cargo-tarpaulin
         uses: actions-rs/tarpaulin@v0.1
-        continue-on-error: true
+        with:
+          version: 0.22.0
+          timeout: 180
+          args: "--avoid-cfg-tarpaulin"
 
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v1

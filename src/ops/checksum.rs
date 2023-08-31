@@ -6,6 +6,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use log::{debug, error, info, warn};
 use rayon::{iter::ParallelIterator, prelude::ParallelBridge};
 use sha2::{Digest, Sha384};
 

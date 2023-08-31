@@ -2,6 +2,7 @@
 
  These operations split the corpus into smaller files of a defined max size.
 !*/
+use log::{debug, error, info, warn};
 use std::{
     borrow::Cow,
     fs::File,
