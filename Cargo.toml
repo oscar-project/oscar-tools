@@ -5,7 +5,7 @@ authors = [
 ]
 edition = "2021"
 name = "oscar-tools"
-version = "0.3.0"
+version = "0.4.0"
 repository = "https://github.com/oscar-project/oscar-tools"
 description = "Tools for processing OSCAR Corpora"
 license = "Apache-2.0"
