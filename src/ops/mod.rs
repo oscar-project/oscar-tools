@@ -9,7 +9,7 @@ mod filter_tags;
 mod sampling;
 mod split;
 
-pub(crate) use checksum::Checksum;
+pub use checksum::Checksum;
 pub(crate) use compress::Compress;
 pub(crate) use dedup::Dedup;
 pub(crate) use extract_text::ExtractText;

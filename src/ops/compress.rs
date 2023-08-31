@@ -6,6 +6,7 @@ use std::{
 };
 
 use flate2::{write::GzEncoder, Compression};
+use log::{debug, error, info, warn};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use walkdir::WalkDir;
 
@@ -79,7 +80,7 @@ pub trait Compress {
 
         Ok(())
     }
-    
+
     /// Recursively compresses files in provided folder.
     /// If `del_src` is set to `true`, removes the compressed files at `src` upon compression completion.
     /// `src` has to exist and be a folder
