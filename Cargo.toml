@@ -37,7 +37,7 @@ walkdir = "2.3.3"
 
 [dependencies.clap]
 features = ["derive"]
-version = "3.0.14"
+version = "4.4.3"
 
 [dev-dependencies]
 oscar-io = "0.1.3"
